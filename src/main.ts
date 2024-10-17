@@ -15,30 +15,30 @@
 
   // First Matrix
 
-  const gpuBufferFirstMatrix = device.createBuffer({
+  const gpuBufferFirstInput = device.createBuffer({
     mappedAtCreation: true,
-    size: 4,
+    size: 8,
     usage: GPUBufferUsage.STORAGE,
   });
-  const arrayBufferFirstMatrix = gpuBufferFirstMatrix.getMappedRange();
-  new Float32Array(arrayBufferFirstMatrix).set([1]);
-  gpuBufferFirstMatrix.unmap();
+  const arrayBufferFirstInput = gpuBufferFirstInput.getMappedRange();
+  new Float32Array(arrayBufferFirstInput).set([1, 2]);
+  gpuBufferFirstInput.unmap();
 
   // Second Matrix
 
-  const gpuBufferSecondMatrix = device.createBuffer({
+  const gpuBufferSecondInput = device.createBuffer({
     mappedAtCreation: true,
-    size: 4,
+    size: 8,
     usage: GPUBufferUsage.STORAGE,
   });
-  const arrayBufferSecondMatrix = gpuBufferSecondMatrix.getMappedRange();
-  new Float32Array(arrayBufferSecondMatrix).set([2]);
-  gpuBufferSecondMatrix.unmap();
+  const arrayBufferSecond = gpuBufferSecondInput.getMappedRange();
+  new Float32Array(arrayBufferSecond).set([2, 7]);
+  gpuBufferSecondInput.unmap();
 
   // Result Matrix
 
   const resultMatrixBuffer = device.createBuffer({
-    size: 4,
+    size: 8,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
 
@@ -76,13 +76,13 @@
       {
         binding: 0,
         resource: {
-          buffer: gpuBufferFirstMatrix,
+          buffer: gpuBufferFirstInput,
         },
       },
       {
         binding: 1,
         resource: {
-          buffer: gpuBufferSecondMatrix,
+          buffer: gpuBufferSecondInput,
         },
       },
       {
@@ -97,14 +97,14 @@
   // Compute shader code
 
   const shaderModule = device.createShaderModule({
-    code: `
-      @group(0) @binding(0) var<storage, read> first : f32;
-      @group(0) @binding(1) var<storage, read> second : f32;
-      @group(0) @binding(2) var<storage, read_write> result : f32;
+    code: /* wgsl */ `
+      @group(0) @binding(0) var<storage, read> first : vec2<f32>;
+      @group(0) @binding(1) var<storage, read> second : vec2<f32>;
+      @group(0) @binding(2) var<storage, read_write> result : vec2<f32>;
 
       @compute @workgroup_size(1)
       fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
-        result = first + second;
+        result = normalize(first) + sin(second);
       }
     `,
   });
@@ -135,7 +135,7 @@
 
   // Get a GPU buffer for reading in an unmapped state.
   const gpuReadBuffer = device.createBuffer({
-    size: 4,
+    size: 8,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
 
@@ -145,7 +145,7 @@
     0 /* source offset */,
     gpuReadBuffer /* destination buffer */,
     0 /* destination offset */,
-    4 /* size */
+    8 /* size */
   );
 
   // Submit GPU commands.
@@ -155,5 +155,8 @@
   // Read buffer.
   await gpuReadBuffer.mapAsync(GPUMapMode.READ);
   const arrayBuffer = gpuReadBuffer.getMappedRange();
-  console.log(new Float32Array(arrayBuffer));
+
+  const res = new Float32Array(arrayBuffer);
+  console.log(res);
+  document.querySelector("h1#title")!.innerHTML = res.toString();
 })();
