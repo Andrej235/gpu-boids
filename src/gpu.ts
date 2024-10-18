@@ -16,7 +16,7 @@ export async function initGPU() {
   device = await adapter.requestDevice();
 }
 
-export async function executeOperations() {
+export async function executeGPUOperations() {
   if (!device) return;
 
   // First Matrix
