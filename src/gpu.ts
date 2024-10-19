@@ -1,4 +1,5 @@
 let device: GPUDevice | null = null;
+let computeShader: string | null = null;
 
 export async function initGPU() {
   if (!("gpu" in navigator)) {
@@ -14,10 +15,13 @@ export async function initGPU() {
     return;
   }
   device = await adapter.requestDevice();
+
+  const wgsl = await fetch("compute.wgsl");
+  computeShader = await wgsl.text();
 }
 
 export async function executeGPUOperations() {
-  if (!device) return;
+  if (!device || !computeShader) return;
 
   // First Matrix
 
@@ -103,16 +107,7 @@ export async function executeGPUOperations() {
   // Compute shader code
 
   const shaderModule = device.createShaderModule({
-    code: /* wgsl */ `
-        @group(0) @binding(0) var<storage, read> first : vec2<f32>;
-        @group(0) @binding(1) var<storage, read> second : vec2<f32>;
-        @group(0) @binding(2) var<storage, read_write> result : vec2<f32>;
-  
-        @compute @workgroup_size(1)
-        fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
-          result = normalize(first) + sin(second);
-        }
-      `,
+    code: computeShader,
   });
 
   // Pipeline setup
