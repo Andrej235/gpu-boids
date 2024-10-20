@@ -1,5 +1,6 @@
 let device: GPUDevice | null = null;
 let computeShader: string | null = null;
+let shader: string | null = null;
 
 export async function initGPU() {
   if (!("gpu" in navigator)) {
@@ -16,8 +17,11 @@ export async function initGPU() {
   }
   device = await adapter.requestDevice();
 
-  const wgsl = await fetch("compute.wgsl");
-  computeShader = await wgsl.text();
+  const wgslCompute = await fetch("compute.wgsl");
+  computeShader = await wgslCompute.text();
+
+  const wgsl = await fetch("shader.wgsl");
+  shader = await wgsl.text();
 }
 
 export async function executeGPUOperations() {
@@ -160,4 +164,60 @@ export async function executeGPUOperations() {
   const res = new Float32Array(arrayBuffer);
   console.log(res);
   document.querySelector("h1#title")!.innerHTML = res.toString();
+}
+
+export async function drawWithGPU(canvas: HTMLCanvasElement) {
+  if (!device || !shader) return;
+
+  const context = canvas.getContext("webgpu");
+  if (!context) {
+    console.log("Failed to get webgpu context");
+    return;
+  }
+
+  const swapChainFormat = "bgra8unorm";
+  context.configure({
+    device: device,
+    format: swapChainFormat,
+  });
+
+  const shaderModule = device.createShaderModule({
+    code: shader,
+  });
+
+  const pipeline = device.createRenderPipeline({
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_main",
+      targets: [{ format: swapChainFormat }],
+    },
+    primitive: {
+      topology: "triangle-list",
+    },
+    layout: "auto",
+  });
+
+  const commandEncoder = device.createCommandEncoder();
+  const textureView = context.getCurrentTexture().createView();
+
+  const passEncoder = commandEncoder.beginRenderPass({
+    colorAttachments: [
+      {
+        view: textureView,
+        loadOp: "clear",
+        clearValue: { r: 0, g: 0, b: 0, a: 1 },
+        storeOp: "store",
+      },
+    ],
+  });
+
+  passEncoder.setPipeline(pipeline);
+  passEncoder.draw(3, 1, 0, 0);
+  passEncoder.end();
+
+  device.queue.submit([commandEncoder.finish()]);
 }
