@@ -64,6 +64,13 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
           type: "read-only-storage",
         },
       },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+          type: "read-only-storage",
+        },
+      },
     ],
   });
 
@@ -73,19 +80,25 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
       {
         binding: 0,
         resource: {
-          buffer: getInputBuffer(device, [0.1]),
+          buffer: getInputBuffer(device, [0.05], 4),
         },
       },
       {
         binding: 1,
         resource: {
-          buffer: getInputBuffer(device, [0.5, -0.7]),
+          buffer: getInputBuffer(device, [0.5, -0.7], 8),
         },
       },
       {
         binding: 2,
         resource: {
-          buffer: getInputBuffer(device, [Math.PI / 4]),
+          buffer: getInputBuffer(device, [Math.PI / 3], 4),
+        },
+      },
+      {
+        binding: 3,
+        resource: {
+          buffer: getInputBuffer(device, [canvas.width / canvas.height], 4),
         },
       },
     ],
@@ -133,10 +146,14 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
   device.queue.submit([commandEncoder.finish()]);
 }
 
-function getInputBuffer(device: GPUDevice, arrayBuffer: number[]): GPUBuffer {
+function getInputBuffer(
+  device: GPUDevice,
+  arrayBuffer: number[],
+  size: number
+): GPUBuffer {
   const gpuInputBuffer = device.createBuffer({
     mappedAtCreation: true,
-    size: 8,
+    size,
     usage: GPUBufferUsage.STORAGE,
   });
 
