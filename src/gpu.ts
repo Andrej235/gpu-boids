@@ -57,6 +57,13 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
           type: "read-only-storage",
         },
       },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+          type: "read-only-storage",
+        },
+      },
     ],
   });
 
@@ -73,6 +80,12 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
         binding: 1,
         resource: {
           buffer: getInputBuffer(device, [0.5, -0.7]),
+        },
+      },
+      {
+        binding: 2,
+        resource: {
+          buffer: getInputBuffer(device, [Math.PI / 4]),
         },
       },
     ],
