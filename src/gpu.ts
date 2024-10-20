@@ -185,10 +185,37 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
     code: shader,
   });
 
+  const vertices = new Float32Array([
+    // First triangle
+    -0.5, -0.5, 0.5, -0.5, 0.0, 0.5,
+    // Second triangle
+    0.5, 0.5, 1.0, -0.5, 0.0, -0.5,
+  ]);
+
+  const vertexBuffer = device.createBuffer({
+    size: vertices.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  });
+
+  // Copy the vertex data to the buffer
+  device.queue.writeBuffer(vertexBuffer, 0, vertices);
+
   const pipeline = device.createRenderPipeline({
     vertex: {
       module: shaderModule,
       entryPoint: "vs_main",
+      buffers: [
+        {
+          arrayStride: 2 * 4, // 2 floats, each 4 bytes
+          attributes: [
+            {
+              shaderLocation: 0,
+              offset: 0,
+              format: "float32x2",
+            },
+          ],
+        },
+      ],
     },
     fragment: {
       module: shaderModule,
@@ -216,7 +243,8 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
   });
 
   passEncoder.setPipeline(pipeline);
-  passEncoder.draw(3, 1, 0, 0);
+  passEncoder.setVertexBuffer(0, vertexBuffer);
+  passEncoder.draw(6, 1, 0, 0);
   passEncoder.end();
 
   device.queue.submit([commandEncoder.finish()]);
