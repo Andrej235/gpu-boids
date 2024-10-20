@@ -41,20 +41,17 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
 
   //?BUFFER *************************************************************************************************
 
-  const gpuInputBuffer = device.createBuffer({
-    mappedAtCreation: true,
-    size: 8,
-    usage: GPUBufferUsage.STORAGE,
-  });
-
-  const arrayInputBuffer = gpuInputBuffer.getMappedRange();
-  new Float32Array(arrayInputBuffer).set([0.3, -0.6]);
-  gpuInputBuffer.unmap();
-
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+          type: "read-only-storage",
+        },
+      },
+      {
+        binding: 1,
         visibility: GPUShaderStage.VERTEX,
         buffer: {
           type: "read-only-storage",
@@ -69,7 +66,13 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
       {
         binding: 0,
         resource: {
-          buffer: gpuInputBuffer,
+          buffer: getInputBuffer(device, [0.1]),
+        },
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: getInputBuffer(device, [0.5, -0.7]),
         },
       },
     ],
@@ -111,8 +114,22 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
 
   passEncoder.setPipeline(pipeline);
   passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.draw(6, 1, 0, 0);
+  passEncoder.draw(3, 1, 0, 0);
   passEncoder.end();
 
   device.queue.submit([commandEncoder.finish()]);
+}
+
+function getInputBuffer(device: GPUDevice, arrayBuffer: number[]): GPUBuffer {
+  const gpuInputBuffer = device.createBuffer({
+    mappedAtCreation: true,
+    size: 8,
+    usage: GPUBufferUsage.STORAGE,
+  });
+
+  const arrayInputBuffer = gpuInputBuffer.getMappedRange();
+  new Float32Array(arrayInputBuffer).set(arrayBuffer);
+  gpuInputBuffer.unmap();
+
+  return gpuInputBuffer;
 }
