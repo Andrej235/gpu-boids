@@ -1,8 +1,17 @@
 import "./style.css";
-import { drawWithGPU, initGPU } from "./gpu";
+import { BoidProps, drawWithGPU, initGPU } from "./gpu";
 import Stats from "stats.js";
+import * as dat from "dat.gui";
+import { Vector2 } from "three";
 
 let stats: Stats | null = null;
+let canvas: HTMLCanvasElement | null = null;
+
+let boidProps: BoidProps = {
+  center: new Vector2(0, 0),
+  rotation: Math.PI / 4,
+  triangleSize: 0.05,
+};
 
 async function init() {
   await initGPU();
@@ -27,20 +36,31 @@ async function init() {
   document.body.appendChild(stats.dom);
 
   const appRoot = document.getElementById("app")!;
-  const canvas = document.createElement("canvas");
+  canvas = document.createElement("canvas");
   appRoot.appendChild(canvas);
   canvas.height = window.innerHeight;
   canvas.width = window.innerWidth;
   canvas.style.width = "100%";
   canvas.style.height = "100%";
-  drawWithGPU(canvas);
 
   requestAnimationFrame(update);
+
+  const gui = new dat.GUI();
+  const folder = gui.addFolder("Center");
+  folder.add(boidProps.center, "x", undefined, undefined, 0.01);
+  folder.add(boidProps.center, "y", undefined, undefined, 0.01);
+  gui.add(boidProps, "rotation");
+  gui.add(boidProps, "triangleSize");
 }
 
 async function update() {
+  if (!canvas) {
+    requestAnimationFrame(update);
+    return;
+  }
+
   stats?.begin();
-  // await executeGPUOperations();
+  await drawWithGPU(canvas, boidProps);
   stats?.end();
 
   requestAnimationFrame(update);

@@ -1,3 +1,5 @@
+import { Vector2 } from "three";
+
 let device: GPUDevice | null = null;
 let shader: string | null = null;
 
@@ -20,7 +22,16 @@ export async function initGPU() {
   shader = await wgsl.text();
 }
 
-export async function drawWithGPU(canvas: HTMLCanvasElement) {
+export type BoidProps = {
+  triangleSize: number;
+  center: Vector2;
+  rotation: number;
+};
+
+export async function drawWithGPU(
+  canvas: HTMLCanvasElement,
+  boidProps: BoidProps
+) {
   if (!device || !shader) return;
 
   const context = canvas.getContext("webgpu");
@@ -80,19 +91,23 @@ export async function drawWithGPU(canvas: HTMLCanvasElement) {
       {
         binding: 0,
         resource: {
-          buffer: getInputBuffer(device, [0.05], 4),
+          buffer: getInputBuffer(device, [boidProps.triangleSize], 4),
         },
       },
       {
         binding: 1,
         resource: {
-          buffer: getInputBuffer(device, [0.5, -0.7], 8),
+          buffer: getInputBuffer(
+            device,
+            [boidProps.center.x, boidProps.center.y],
+            8
+          ),
         },
       },
       {
         binding: 2,
         resource: {
-          buffer: getInputBuffer(device, [Math.PI / 3], 4),
+          buffer: getInputBuffer(device, [boidProps.rotation], 4),
         },
       },
       {
