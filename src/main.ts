@@ -18,6 +18,11 @@ let boids: Boid[] = [
     rotation: Math.PI / 4,
     triangleSize: 0.05,
   },
+  {
+    center: new Vector2(0.3, -0.4),
+    rotation: Math.PI / 4,
+    triangleSize: 0.05,
+  },
 ];
 
 async function init() {

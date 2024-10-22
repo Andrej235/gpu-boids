@@ -28,7 +28,7 @@ export type Boid = {
   rotation: number;
 };
 
-export async function drawBoids(canvas: HTMLCanvasElement, boidProps: Boid[]) {
+export async function drawBoids(canvas: HTMLCanvasElement, boids: Boid[]) {
   if (!device || !shader) return;
 
   const context = canvas.getContext("webgpu");
@@ -72,13 +72,6 @@ export async function drawBoids(canvas: HTMLCanvasElement, boidProps: Boid[]) {
           type: "read-only-storage",
         },
       },
-      {
-        binding: 3,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
     ],
   });
 
@@ -88,7 +81,7 @@ export async function drawBoids(canvas: HTMLCanvasElement, boidProps: Boid[]) {
       {
         binding: 0,
         resource: {
-          buffer: getInputBuffer(device, [boidProps[0].triangleSize], 4),
+          buffer: getInputBuffer(device, [boids[0].triangleSize], 4),
         },
       },
       {
@@ -96,19 +89,13 @@ export async function drawBoids(canvas: HTMLCanvasElement, boidProps: Boid[]) {
         resource: {
           buffer: getInputBuffer(
             device,
-            boidProps.flatMap((boid) => [boid.center.x, boid.center.y]),
-            boidProps.length * 8
+            getWGSLRepresentation(boids),
+            boids.length * 12
           ),
         },
       },
       {
         binding: 2,
-        resource: {
-          buffer: getInputBuffer(device, [boidProps[0].rotation], 4),
-        },
-      },
-      {
-        binding: 3,
         resource: {
           buffer: getInputBuffer(device, [canvas.width / canvas.height], 4),
         },
@@ -152,7 +139,7 @@ export async function drawBoids(canvas: HTMLCanvasElement, boidProps: Boid[]) {
 
   passEncoder.setPipeline(pipeline);
   passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.draw(boidProps.length * 3, 1, 0, 0);
+  passEncoder.draw(boids.length * 3, 1, 0, 0);
   passEncoder.end();
 
   device.queue.submit([commandEncoder.finish()]);
@@ -174,4 +161,8 @@ function getInputBuffer(
   gpuInputBuffer.unmap();
 
   return gpuInputBuffer;
+}
+
+function getWGSLRepresentation(boids: Boid[]) {
+  return boids.flatMap((boid) => [boid.center.x, boid.center.y, boid.rotation]);
 }
