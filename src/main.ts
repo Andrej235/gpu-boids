@@ -15,14 +15,17 @@ let boidData: {
   boids: [
     {
       center: new Vector2(0, 0),
+      velocity: new Vector2(0, 0),
       rotation: Math.PI / 4,
     },
     {
       center: new Vector2(0, 0.5),
+      velocity: new Vector2(0, 0),
       rotation: Math.PI / 4,
     },
     {
       center: new Vector2(0.3, -0.4),
+      velocity: new Vector2(0, 0),
       rotation: Math.PI / 4,
     },
   ],
@@ -62,12 +65,11 @@ function initGUI() {
     if (oldCount > newCount) boidData.boids = boidData.boids.slice(0, newCount);
     else
       boidData.boids = boidData.boids.concat(
-        new Array<Boid>(newCount - oldCount)
-          .fill({ center: new Vector2(0, 0), rotation: 0 })
-          .map(() => ({
-            center: new Vector2(0, 0),
-            rotation: Math.PI / 4,
-          }))
+        new Array<Boid>(newCount - oldCount).fill({
+          center: new Vector2(0, 0),
+          rotation: 0,
+          velocity: new Vector2(0, 0),
+        })
       );
 
     gui?.destroy();
@@ -78,13 +80,18 @@ function initGUI() {
     {
       "Randomize Boids": () => {
         boidData.boids.forEach((each) => {
-          each.center.x = Math.random() - 0.5;
-          each.center.y = Math.random() - 0.5;
+          each.center.set(
+            Math.random() * 1.5 - 0.75,
+            Math.random() * 1.5 - 0.75
+          );
+          each.velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
         });
       },
     },
     "Randomize Boids"
   );
+
+  if (boidData.count > 10) return;
 
   const guiFolders: dat.GUI[] = [];
 
@@ -92,15 +99,15 @@ function initGUI() {
   boidData.boids.forEach(function (each, i) {
     guiFolders.push(gui!.addFolder(i.toString()));
 
-    guiFolders[i]
-      .add(each.center, "x", undefined, undefined, 0.01)
-      .name("Position X");
+    guiFolders[i].add(each.center, "x", -1, 1, 0.01).name("Position X");
 
-    guiFolders[i]
-      .add(each.center, "y", undefined, undefined, 0.01)
-      .name("Position Y");
+    guiFolders[i].add(each.center, "y", -1, 1, 0.01).name("Position Y");
 
-    guiFolders[i].add(each, "rotation").name("Rotation");
+    guiFolders[i].add(each, "rotation", 0, Math.PI * 2, 0.01).name("Rotation");
+
+    guiFolders[i].add(each.velocity, "x", -1, 1, 0.01).name("Velocity X");
+
+    guiFolders[i].add(each.velocity, "y", -1, 1, 0.01).name("Velocity Y");
   });
 }
 

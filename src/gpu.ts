@@ -24,6 +24,7 @@ export async function initGPU() {
 
 export type Boid = {
   center: Vector2;
+  velocity: Vector2;
   rotation: number;
 };
 
