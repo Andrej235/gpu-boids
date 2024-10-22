@@ -1,5 +1,5 @@
 import "./style.css";
-import { BoidProps, drawWithGPU, initGPU } from "./gpu";
+import { Boid, drawBoids, initGPU } from "./gpu";
 import Stats from "stats.js";
 import * as dat from "dat.gui";
 import { Vector2 } from "three";
@@ -7,29 +7,21 @@ import { Vector2 } from "three";
 let stats: Stats | null = null;
 let canvas: HTMLCanvasElement | null = null;
 
-let boidProps: BoidProps = {
-  center: new Vector2(0, 0),
-  rotation: Math.PI / 4,
-  triangleSize: 0.05,
-};
+let boids: Boid[] = [
+  {
+    center: new Vector2(0, 0),
+    rotation: Math.PI / 4,
+    triangleSize: 0.05,
+  },
+  {
+    center: new Vector2(0, 0.5),
+    rotation: Math.PI / 4,
+    triangleSize: 0.05,
+  },
+];
 
 async function init() {
   await initGPU();
-
-  // initDatGUI();
-  // const [scene, camera, renderer] = initScene();
-
-  // const boids = initBoids(scene, 1000);
-  // renderer.render(scene, camera);
-
-  /*   boidPositions = boids.map((boid) => boid.position);
-  boidVelocities = Array.from(
-    {
-      length: boids.length,
-    },
-    () => new Vector3(Math.random(), Math.random(), 0).normalize()
-  );
- */
 
   stats = new Stats();
   stats.showPanel(1);
@@ -44,13 +36,28 @@ async function init() {
   canvas.style.height = "100%";
 
   requestAnimationFrame(update);
+  initGUI();
+}
 
+function initGUI() {
   const gui = new dat.GUI();
-  const folder = gui.addFolder("Center");
-  folder.add(boidProps.center, "x", undefined, undefined, 0.01);
-  folder.add(boidProps.center, "y", undefined, undefined, 0.01);
-  gui.add(boidProps, "rotation");
-  gui.add(boidProps, "triangleSize");
+  const guiFolders: dat.GUI[] = [];
+
+  // data is an array of objects
+  boids.forEach(function (each, i) {
+    guiFolders.push(gui.addFolder(i.toString()));
+
+    guiFolders[i]
+      .add(each.center, "x", undefined, undefined, 0.01)
+      .name("Position X");
+
+    guiFolders[i]
+      .add(each.center, "y", undefined, undefined, 0.01)
+      .name("Position Y");
+
+    guiFolders[i].add(each, "rotation").name("Rotation");
+    guiFolders[i].add(each, "triangleSize").name("Size");
+  });
 }
 
 async function update() {
@@ -60,7 +67,7 @@ async function update() {
   }
 
   stats?.begin();
-  await drawWithGPU(canvas, boidProps);
+  await drawBoids(canvas, boids);
   stats?.end();
 
   requestAnimationFrame(update);

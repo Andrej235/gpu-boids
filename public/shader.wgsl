@@ -1,5 +1,9 @@
+struct BoidPositionsInput {
+  positions: array<vec2<f32>>,
+}
+
 @group(0) @binding(0) var<storage, read> triangleSize : f32;
-@group(0) @binding(1) var<storage, read> center : vec2<f32>;
+@group(0) @binding(1) var<storage, read> center : BoidPositionsInput;
 @group(0) @binding(2) var<storage, read> rotation : f32;
 @group(0) @binding(3) var<storage, read> aspectRatio: f32;
 
@@ -19,10 +23,10 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
         sinAngle, cosAngle
     );
 
-    let rotatedPosition = rotationMatrix * positions[vertex_index];
+    let rotatedPosition = rotationMatrix * positions[vertex_index % 3];
     let adjustedPosition = vec2<f32>(rotatedPosition.x, rotatedPosition.y * aspectRatio);
 
-    return vec4<f32>(adjustedPosition + center, 0.0, 1.0);
+    return vec4<f32>(adjustedPosition + center.positions[vertex_index / 3], 0.0, 1.0);
 }
 
 @fragment

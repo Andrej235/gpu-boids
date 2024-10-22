@@ -22,16 +22,13 @@ export async function initGPU() {
   shader = await wgsl.text();
 }
 
-export type BoidProps = {
+export type Boid = {
   triangleSize: number;
   center: Vector2;
   rotation: number;
 };
 
-export async function drawWithGPU(
-  canvas: HTMLCanvasElement,
-  boidProps: BoidProps
-) {
+export async function drawBoids(canvas: HTMLCanvasElement, boidProps: Boid[]) {
   if (!device || !shader) return;
 
   const context = canvas.getContext("webgpu");
@@ -91,7 +88,7 @@ export async function drawWithGPU(
       {
         binding: 0,
         resource: {
-          buffer: getInputBuffer(device, [boidProps.triangleSize], 4),
+          buffer: getInputBuffer(device, [boidProps[0].triangleSize], 4),
         },
       },
       {
@@ -99,15 +96,15 @@ export async function drawWithGPU(
         resource: {
           buffer: getInputBuffer(
             device,
-            [boidProps.center.x, boidProps.center.y],
-            8
+            boidProps.flatMap((boid) => [boid.center.x, boid.center.y]),
+            boidProps.length * 8
           ),
         },
       },
       {
         binding: 2,
         resource: {
-          buffer: getInputBuffer(device, [boidProps.rotation], 4),
+          buffer: getInputBuffer(device, [boidProps[0].rotation], 4),
         },
       },
       {
@@ -155,7 +152,7 @@ export async function drawWithGPU(
 
   passEncoder.setPipeline(pipeline);
   passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.draw(3, 1, 0, 0);
+  passEncoder.draw(boidProps.length * 3, 1, 0, 0);
   passEncoder.end();
 
   device.queue.submit([commandEncoder.finish()]);
