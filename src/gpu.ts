@@ -2,6 +2,7 @@ import { Vector2 } from "three";
 
 let device: GPUDevice | null = null;
 let shader: string | null = null;
+let computeShader: string | null = null;
 
 export async function initGPU() {
   if (!("gpu" in navigator)) {
@@ -20,6 +21,9 @@ export async function initGPU() {
 
   const wgsl = await fetch("shader.wgsl");
   shader = await wgsl.text();
+
+  const computeWgsl = await fetch("compute.wgsl");
+  computeShader = await computeWgsl.text();
 }
 
 export type Boid = {
@@ -33,7 +37,7 @@ export async function drawBoids(
   boids: Boid[],
   boidSize: number = 0.05
 ) {
-  if (!device || !shader) return;
+  if (!device || !shader || !computeShader) return;
 
   const context = canvas.getContext("webgpu");
   if (!context) {
@@ -51,7 +55,19 @@ export async function drawBoids(
     code: shader,
   });
 
+  const computeShaderModule = device.createShaderModule({
+    code: computeShader,
+  });
+
   //?BUFFER *************************************************************************************************
+
+  const triangleSizeBuffer = device.createBuffer({
+    size: 4, // 1 float
+    usage:
+      GPUBufferUsage.STORAGE |
+      GPUBufferUsage.COPY_DST |
+      GPUBufferUsage.COPY_SRC,
+  });
 
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -85,7 +101,7 @@ export async function drawBoids(
       {
         binding: 0,
         resource: {
-          buffer: getInputBuffer(device, [boidSize], 4),
+          buffer: triangleSizeBuffer,
         },
       },
       {
@@ -107,7 +123,41 @@ export async function drawBoids(
     ],
   });
 
+  const computeBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: "storage",
+        },
+      },
+    ],
+  });
+
+  const computeBindGroup = device.createBindGroup({
+    layout: computeBindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: triangleSizeBuffer,
+        },
+      },
+    ],
+  });
+
   //?BUFFER *************************************************************************************************
+
+  const computePipeline = device.createComputePipeline({
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [computeBindGroupLayout],
+    }),
+    compute: {
+      module: computeShaderModule,
+      entryPoint: "compute_main",
+    },
+  });
 
   const pipeline = device.createRenderPipeline({
     vertex: {
@@ -126,6 +176,14 @@ export async function drawBoids(
       bindGroupLayouts: [bindGroupLayout],
     }),
   });
+
+  const computeCommandEncoder = device.createCommandEncoder();
+  const computePassEncoder = computeCommandEncoder.beginComputePass();
+  computePassEncoder.setPipeline(computePipeline);
+  computePassEncoder.setBindGroup(0, computeBindGroup);
+  computePassEncoder.dispatchWorkgroups(1);
+  computePassEncoder.end();
+  device.queue.submit([computeCommandEncoder.finish()]);
 
   const commandEncoder = device.createCommandEncoder();
   const textureView = context.getCurrentTexture().createView();
