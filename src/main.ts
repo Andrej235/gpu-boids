@@ -7,23 +7,28 @@ import { Vector2 } from "three";
 let stats: Stats | null = null;
 let canvas: HTMLCanvasElement | null = null;
 
-let boids: Boid[] = [
-  {
-    center: new Vector2(0, 0),
-    rotation: Math.PI / 4,
-    triangleSize: 0.05,
-  },
-  {
-    center: new Vector2(0, 0.5),
-    rotation: Math.PI / 4,
-    triangleSize: 0.05,
-  },
-  {
-    center: new Vector2(0.3, -0.4),
-    rotation: Math.PI / 4,
-    triangleSize: 0.05,
-  },
-];
+let boidData: {
+  boids: Boid[];
+  size: number;
+  count: number;
+} = {
+  boids: [
+    {
+      center: new Vector2(0, 0),
+      rotation: Math.PI / 4,
+    },
+    {
+      center: new Vector2(0, 0.5),
+      rotation: Math.PI / 4,
+    },
+    {
+      center: new Vector2(0.3, -0.4),
+      rotation: Math.PI / 4,
+    },
+  ],
+  size: 0.05,
+  count: 3,
+};
 
 async function init() {
   await initGPU();
@@ -44,13 +49,48 @@ async function init() {
   initGUI();
 }
 
+let gui: dat.GUI | null = null;
+
 function initGUI() {
-  const gui = new dat.GUI();
+  gui = new dat.GUI();
+  gui.add(boidData, "size", 0.0001, 0.5, 0.01).name("Boid Size");
+
+  gui.add(boidData, "count", 1, undefined, 1).onChange((newCount) => {
+    const oldCount = boidData.boids.length;
+    if (oldCount === newCount) return;
+
+    if (oldCount > newCount) boidData.boids = boidData.boids.slice(0, newCount);
+    else
+      boidData.boids = boidData.boids.concat(
+        new Array<Boid>(newCount - oldCount)
+          .fill({ center: new Vector2(0, 0), rotation: 0 })
+          .map(() => ({
+            center: new Vector2(0, 0),
+            rotation: Math.PI / 4,
+          }))
+      );
+
+    gui?.destroy();
+    initGUI();
+  });
+
+  gui.add(
+    {
+      "Randomize Boids": () => {
+        boidData.boids.forEach((each) => {
+          each.center.x = Math.random() - 0.5;
+          each.center.y = Math.random() - 0.5;
+        });
+      },
+    },
+    "Randomize Boids"
+  );
+
   const guiFolders: dat.GUI[] = [];
 
   // data is an array of objects
-  boids.forEach(function (each, i) {
-    guiFolders.push(gui.addFolder(i.toString()));
+  boidData.boids.forEach(function (each, i) {
+    guiFolders.push(gui!.addFolder(i.toString()));
 
     guiFolders[i]
       .add(each.center, "x", undefined, undefined, 0.01)
@@ -61,7 +101,6 @@ function initGUI() {
       .name("Position Y");
 
     guiFolders[i].add(each, "rotation").name("Rotation");
-    guiFolders[i].add(each, "triangleSize").name("Size");
   });
 }
 
@@ -72,7 +111,7 @@ async function update() {
   }
 
   stats?.begin();
-  await drawBoids(canvas, boids);
+  await drawBoids(canvas, boidData.boids, boidData.size);
   stats?.end();
 
   requestAnimationFrame(update);

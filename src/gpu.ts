@@ -23,12 +23,15 @@ export async function initGPU() {
 }
 
 export type Boid = {
-  triangleSize: number;
   center: Vector2;
   rotation: number;
 };
 
-export async function drawBoids(canvas: HTMLCanvasElement, boids: Boid[]) {
+export async function drawBoids(
+  canvas: HTMLCanvasElement,
+  boids: Boid[],
+  boidSize: number = 0.05
+) {
   if (!device || !shader) return;
 
   const context = canvas.getContext("webgpu");
@@ -81,7 +84,7 @@ export async function drawBoids(canvas: HTMLCanvasElement, boids: Boid[]) {
       {
         binding: 0,
         resource: {
-          buffer: getInputBuffer(device, [boids[0].triangleSize], 4),
+          buffer: getInputBuffer(device, [boidSize], 4),
         },
       },
       {
