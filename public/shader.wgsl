@@ -1,5 +1,6 @@
 struct BoidInput {
   position: array<f32, 2>,
+  velocity: array<f32, 2>,
   rotation: f32,
 }
 

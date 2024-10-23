@@ -16,17 +16,14 @@ let boidData: {
     {
       center: new Vector2(0, 0),
       velocity: new Vector2(0, 0),
-      rotation: Math.PI / 4,
     },
     {
       center: new Vector2(0, 0.5),
       velocity: new Vector2(0, 0),
-      rotation: Math.PI / 4,
     },
     {
       center: new Vector2(0.3, -0.4),
       velocity: new Vector2(0, 0),
-      rotation: Math.PI / 4,
     },
   ],
   size: 0.05,
@@ -67,7 +64,6 @@ function initGUI() {
       boidData.boids = boidData.boids.concat(
         new Array<Boid>(newCount - oldCount).fill({
           center: new Vector2(0, 0),
-          rotation: 0,
           velocity: new Vector2(0, 0),
         })
       );
@@ -119,8 +115,6 @@ function initGUI() {
     guiFolders[i].add(each.center, "x", -1, 1, 0.01).name("Position X");
 
     guiFolders[i].add(each.center, "y", -1, 1, 0.01).name("Position Y");
-
-    guiFolders[i].add(each, "rotation", 0, Math.PI * 2, 0.01).name("Rotation");
 
     guiFolders[i].add(each.velocity, "x", -1, 1, 0.01).name("Velocity X");
 

@@ -29,7 +29,6 @@ export async function initGPU() {
 export type Boid = {
   center: Vector2;
   velocity: Vector2;
-  rotation: number;
 };
 
 let shaderModule: GPUShaderModule | null = null;
@@ -46,6 +45,7 @@ let computePipeline: GPUComputePipeline | null = null;
 
 let triangleSizeBuffer: GPUBuffer | null = null;
 let aspectRatioBuffer: GPUBuffer | null = null;
+let boidsBuffer: GPUBuffer | null = null;
 
 export function initBoidsPipeline(
   canvas: HTMLCanvasElement,
@@ -73,6 +73,11 @@ export function initBoidsPipeline(
 
   triangleSizeBuffer = getBuffer(device, 4, [boidSize]);
   aspectRatioBuffer = getBuffer(device, 4, [canvas.width / canvas.height]);
+  boidsBuffer = getBuffer(
+    device,
+    boids.length * 20,
+    getWGSLRepresentation(boids)
+  );
 
   bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -109,10 +114,39 @@ export function initBoidsPipeline(
           type: "storage",
         },
       },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: "storage",
+        },
+      },
     ],
   });
 
-  bindGroup = createBindGroupForVertexShader(boids);
+  bindGroup = device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: triangleSizeBuffer,
+        },
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: boidsBuffer,
+        },
+      },
+      {
+        binding: 2,
+        resource: {
+          buffer: aspectRatioBuffer,
+        },
+      },
+    ],
+  });
 
   computeBindGroup = device.createBindGroup({
     layout: computeBindGroupLayout,
@@ -121,6 +155,12 @@ export function initBoidsPipeline(
         binding: 0,
         resource: {
           buffer: triangleSizeBuffer,
+        },
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: boidsBuffer,
         },
       },
     ],
@@ -157,45 +197,6 @@ export function initBoidsPipeline(
   });
 }
 
-function createBindGroupForVertexShader(boids: Boid[]) {
-  if (
-    !device ||
-    !bindGroupLayout ||
-    !triangleSizeBuffer ||
-    !aspectRatioBuffer ||
-    boids.length === 0
-  )
-    return null;
-
-  return device.createBindGroup({
-    layout: bindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: triangleSizeBuffer,
-        },
-      },
-      {
-        binding: 1,
-        resource: {
-          buffer: getBuffer(
-            device,
-            boids.length * 12,
-            getWGSLRepresentation(boids)
-          ),
-        },
-      },
-      {
-        binding: 2,
-        resource: {
-          buffer: aspectRatioBuffer,
-        },
-      },
-    ],
-  });
-}
-
 export function drawBoids(
   canvas: HTMLCanvasElement,
   boids: Boid[],
@@ -218,7 +219,7 @@ export function drawBoids(
   const computePassEncoder = computeCommandEncoder.beginComputePass();
   computePassEncoder.setPipeline(computePipeline);
   computePassEncoder.setBindGroup(0, computeBindGroup);
-  computePassEncoder.dispatchWorkgroups(1);
+  computePassEncoder.dispatchWorkgroups(3);
   computePassEncoder.end();
   device.queue.submit([computeCommandEncoder.finish()]);
 
@@ -266,5 +267,11 @@ function getBuffer(
 }
 
 function getWGSLRepresentation(boids: Boid[]) {
-  return boids.flatMap((boid) => [boid.center.x, boid.center.y, boid.rotation]);
+  return boids.flatMap((boid) => [
+    boid.center.x,
+    boid.center.y,
+    boid.velocity.x,
+    boid.velocity.y,
+    0,
+  ]);
 }
