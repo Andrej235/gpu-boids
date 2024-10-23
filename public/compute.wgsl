@@ -1,4 +1,4 @@
-struct BoidInput {
+struct Boid {
   position: array<f32, 2>,
   velocity: array<f32, 2>
 }
@@ -9,18 +9,35 @@ struct ComputeOutput {
 
 @group(0) @binding(0) var<storage, read> triangleSize : f32; 
 @group(0) @binding(1) var<storage, read> aspectRatio : f32;
-@group(0) @binding(2) var<storage, read_write> boids : array<BoidInput>;
-@group(0) @binding(3) var<storage, read_write> output : array<ComputeOutput>;
+@group(0) @binding(2) var<storage, read> boidsCount : u32;
+@group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
+@group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
 
-@compute @workgroup_size(50, 5)
+@compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let boid = boids[global_id.x + global_id.y * 50];
+    let workgroupIndex = global_id.x + global_id.y * 16;
 
-    let currentPosition = vec2(boid.position[0], boid.position[1]);
-    let currentVelocity = vec2(boid.velocity[0], boid.velocity[1]);
+    let boid = boids[workgroupIndex];
 
-    var position = currentPosition + normalize(currentVelocity) * .01;
-    let rotation = atan2(boid.velocity[0], boid.velocity[1]);
+    var position = vec2(boid.position[0], boid.position[1]);
+    var velocity = vec2(boid.velocity[0], boid.velocity[1]);
+
+    position += normalize(velocity) * .01;
+    position = keepOnScreen(position);
+
+    output[workgroupIndex] = ComputeOutput(
+        getVertexPositions(position, velocity)
+    );
+
+    //workgroupIndex will be the same for all boids calculated by the same workgroup, replace this with a global boid id
+    boids[workgroupIndex] = Boid(
+        array<f32, 2>(position.x, position.y),
+        boid.velocity,
+    );
+}
+
+fn keepOnScreen(currentPosition: vec2<f32>) -> vec2<f32> {
+    var position = currentPosition;
 
     if position.x > 1.05 {
         position = vec2(-1.05, position.y);
@@ -34,12 +51,23 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         position = vec2(position.x, 1.05);
     }
 
+    return position;
+}
+
+fn getRotationMatrix(velocity: vec2<f32>) -> mat2x2<f32> {
+    let rotation = atan2(velocity.x, velocity.y);
     let cosAngle = cos(rotation);
     let sinAngle = sin(rotation);
     let rotationMatrix = mat2x2<f32>(
         cosAngle, -sinAngle,
         sinAngle, cosAngle
     );
+
+    return rotationMatrix;
+}
+
+fn getVertexPositions(position: vec2<f32>, velocity: vec2<f32>) -> array<vec4<f32>, 3> {
+    let rotationMatrix = getRotationMatrix(velocity);
 
     //Possible micro optimization: redundant calculations, make (triangleSize * 0.707) a constant
     var relativeVertexPositions = array<vec2<f32>, 3>(
@@ -49,17 +77,11 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     );
 
     let aspectRatioVector = vec2<f32>(1.0, aspectRatio);
-    output[global_id.x + global_id.y * 50] = ComputeOutput(
-        array<vec4<f32>, 3>(
-            vec4(rotationMatrix * relativeVertexPositions[0] * aspectRatioVector + position, 0.0, 1.0),
-            vec4(rotationMatrix * relativeVertexPositions[1] * aspectRatioVector + position, 0.0, 1.0),
-            vec4(rotationMatrix * relativeVertexPositions[2] * aspectRatioVector + position, 0.0, 1.0),
-        )
+    let output = array<vec4<f32>, 3>(
+        vec4(rotationMatrix * relativeVertexPositions[0] * aspectRatioVector + position, 0.0, 1.0),
+        vec4(rotationMatrix * relativeVertexPositions[1] * aspectRatioVector + position, 0.0, 1.0),
+        vec4(rotationMatrix * relativeVertexPositions[2] * aspectRatioVector + position, 0.0, 1.0),
     );
 
-    //global_id.x + global_id.y * 50 will be the same for all boids calculated by the same workgroup, replace this with a global boid id
-    boids[global_id.x + global_id.y * 50] = BoidInput(
-        array<f32, 2>(position.x, position.y),
-        boid.velocity,
-    );
+    return output;
 }

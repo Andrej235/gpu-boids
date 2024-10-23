@@ -46,6 +46,7 @@ let computePipeline: GPUComputePipeline | null = null;
 let triangleSizeBuffer: GPUBuffer | null = null;
 let aspectRatioBuffer: GPUBuffer | null = null;
 let boidsBuffer: GPUBuffer | null = null;
+let boidsCountBuffer: GPUBuffer | null = null;
 let boidsComputeOutputBuffer: GPUBuffer | null = null;
 
 export function initBoidsPipeline(
@@ -79,6 +80,7 @@ export function initBoidsPipeline(
     boids.length * 20,
     getWGSLRepresentation(boids)
   );
+  boidsCountBuffer = getBuffer(device, 4, [boids.length]);
   boidsComputeOutputBuffer = getBuffer(device, boids.length * 48, []); //48 = 4 bytes per float of 3 vector4s *per boid
 
   bindGroupLayout = device.createBindGroupLayout({
@@ -113,11 +115,18 @@ export function initBoidsPipeline(
         binding: 2,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
-          type: "storage",
+          type: "read-only-storage",
         },
       },
       {
         binding: 3,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: "storage",
+        },
+      },
+      {
+        binding: 4,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
           type: "storage",
@@ -156,11 +165,17 @@ export function initBoidsPipeline(
       {
         binding: 2,
         resource: {
-          buffer: boidsBuffer,
+          buffer: boidsCountBuffer,
         },
       },
       {
         binding: 3,
+        resource: {
+          buffer: boidsBuffer,
+        },
+      },
+      {
+        binding: 4,
         resource: {
           buffer: boidsComputeOutputBuffer,
         },
@@ -221,7 +236,14 @@ export function drawBoids(
   const computePassEncoder = computeCommandEncoder.beginComputePass();
   computePassEncoder.setPipeline(computePipeline);
   computePassEncoder.setBindGroup(0, computeBindGroup);
-  computePassEncoder.dispatchWorkgroups(50, 5, 1);
+
+  const boidLenghtSqrt = Math.ceil(Math.sqrt(boids.length));
+  computePassEncoder.dispatchWorkgroups(
+    Math.ceil(boidLenghtSqrt / 16),
+    Math.ceil(boidLenghtSqrt / 16),
+    1
+  );
+
   computePassEncoder.end();
   device.queue.submit([computeCommandEncoder.finish()]);
 
