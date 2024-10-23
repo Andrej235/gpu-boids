@@ -219,7 +219,7 @@ export function drawBoids(
   const computePassEncoder = computeCommandEncoder.beginComputePass();
   computePassEncoder.setPipeline(computePipeline);
   computePassEncoder.setBindGroup(0, computeBindGroup);
-  computePassEncoder.dispatchWorkgroups(3);
+  computePassEncoder.dispatchWorkgroups(50, 5, 1);
   computePassEncoder.end();
   device.queue.submit([computeCommandEncoder.finish()]);
 

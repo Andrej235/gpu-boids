@@ -70,6 +70,11 @@ function initGUI() {
 
     gui?.destroy();
     initGUI();
+
+    const context = canvas?.getContext("webgpu");
+    if (!canvas || !context) return;
+
+    initBoidsPipeline(canvas, context, boidData.boids, boidData.size);
   });
 
   gui.add(
@@ -108,7 +113,6 @@ function initGUI() {
 
   const guiFolders: dat.GUI[] = [];
 
-  // data is an array of objects
   boidData.boids.forEach(function (each, i) {
     guiFolders.push(gui!.addFolder(i.toString()));
 
@@ -122,14 +126,14 @@ function initGUI() {
   });
 }
 
-async function update() {
+function update() {
   if (!canvas) {
     requestAnimationFrame(update);
     return;
   }
 
   stats?.begin();
-  await drawBoids(canvas, boidData.boids, boidData.size);
+  drawBoids(canvas, boidData.boids, boidData.size);
   stats?.end();
 
   requestAnimationFrame(update);
