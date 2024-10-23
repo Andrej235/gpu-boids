@@ -79,33 +79,12 @@ export function initBoidsPipeline(
     boids.length * 20,
     getWGSLRepresentation(boids)
   );
-  boidsComputeOutputBuffer = getBuffer(device, boids.length * 16, []);
+  boidsComputeOutputBuffer = getBuffer(device, boids.length * 48, []); //48 = 4 bytes per float of 3 vector4s *per boid
 
   bindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-      {
-        binding: 3,
         visibility: GPUShaderStage.VERTEX,
         buffer: {
           type: "read-only-storage",
@@ -120,18 +99,25 @@ export function initBoidsPipeline(
         binding: 0,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
-          type: "storage",
+          type: "read-only-storage",
         },
       },
       {
         binding: 1,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
-          type: "storage",
+          type: "read-only-storage",
         },
       },
       {
         binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: "storage",
+        },
+      },
+      {
+        binding: 3,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
           type: "storage",
@@ -142,6 +128,18 @@ export function initBoidsPipeline(
 
   bindGroup = device.createBindGroup({
     layout: bindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: boidsComputeOutputBuffer,
+        },
+      },
+    ],
+  });
+
+  computeBindGroup = device.createBindGroup({
+    layout: computeBindGroupLayout,
     entries: [
       {
         binding: 0,
@@ -163,30 +161,6 @@ export function initBoidsPipeline(
       },
       {
         binding: 3,
-        resource: {
-          buffer: boidsComputeOutputBuffer,
-        },
-      },
-    ],
-  });
-
-  computeBindGroup = device.createBindGroup({
-    layout: computeBindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: triangleSizeBuffer,
-        },
-      },
-      {
-        binding: 1,
-        resource: {
-          buffer: boidsBuffer,
-        },
-      },
-      {
-        binding: 2,
         resource: {
           buffer: boidsComputeOutputBuffer,
         },
