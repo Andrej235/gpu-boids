@@ -46,6 +46,7 @@ let computePipeline: GPUComputePipeline | null = null;
 let triangleSizeBuffer: GPUBuffer | null = null;
 let aspectRatioBuffer: GPUBuffer | null = null;
 let boidsBuffer: GPUBuffer | null = null;
+let boidsComputeOutputBuffer: GPUBuffer | null = null;
 
 export function initBoidsPipeline(
   canvas: HTMLCanvasElement,
@@ -78,6 +79,7 @@ export function initBoidsPipeline(
     boids.length * 20,
     getWGSLRepresentation(boids)
   );
+  boidsComputeOutputBuffer = getBuffer(device, boids.length * 16, []);
 
   bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -102,6 +104,13 @@ export function initBoidsPipeline(
           type: "read-only-storage",
         },
       },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: {
+          type: "read-only-storage",
+        },
+      },
     ],
   });
 
@@ -116,6 +125,13 @@ export function initBoidsPipeline(
       },
       {
         binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: "storage",
+        },
+      },
+      {
+        binding: 2,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
           type: "storage",
@@ -136,13 +152,19 @@ export function initBoidsPipeline(
       {
         binding: 1,
         resource: {
-          buffer: boidsBuffer,
+          buffer: aspectRatioBuffer,
         },
       },
       {
         binding: 2,
         resource: {
-          buffer: aspectRatioBuffer,
+          buffer: boidsBuffer,
+        },
+      },
+      {
+        binding: 3,
+        resource: {
+          buffer: boidsComputeOutputBuffer,
         },
       },
     ],
@@ -161,6 +183,12 @@ export function initBoidsPipeline(
         binding: 1,
         resource: {
           buffer: boidsBuffer,
+        },
+      },
+      {
+        binding: 2,
+        resource: {
+          buffer: boidsComputeOutputBuffer,
         },
       },
     ],
