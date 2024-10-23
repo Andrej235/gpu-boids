@@ -47,10 +47,11 @@ let computePipeline: GPUComputePipeline | null = null;
 let triangleSizeBuffer: GPUBuffer | null = null;
 let aspectRatioBuffer: GPUBuffer | null = null;
 
-function initBoidsPipeline(
+export function initBoidsPipeline(
   canvas: HTMLCanvasElement,
   context: GPUCanvasContext,
-  boids: Boid[]
+  boids: Boid[],
+  boidSize: number
 ) {
   if (!device || !shader || !computeShader) return;
 
@@ -70,15 +71,8 @@ function initBoidsPipeline(
 
   //?BUFFERs *************************************************************************************************
 
-  triangleSizeBuffer = device.createBuffer({
-    size: 4, // 1 float
-    usage:
-      GPUBufferUsage.STORAGE |
-      GPUBufferUsage.COPY_DST |
-      GPUBufferUsage.COPY_SRC,
-  });
-
-  aspectRatioBuffer = getInputBuffer(device, [canvas.width / canvas.height], 4);
+  triangleSizeBuffer = getBuffer(device, 4, [boidSize]);
+  aspectRatioBuffer = getBuffer(device, 4, [canvas.width / canvas.height]);
 
   bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -185,10 +179,10 @@ function createBindGroupForVertexShader(boids: Boid[]) {
       {
         binding: 1,
         resource: {
-          buffer: getInputBuffer(
+          buffer: getBuffer(
             device,
-            getWGSLRepresentation(boids),
-            boids.length * 12
+            boids.length * 12,
+            getWGSLRepresentation(boids)
           ),
         },
       },
@@ -207,7 +201,7 @@ export function drawBoids(
   boids: Boid[],
   boidSize: number = 0.05
 ) {
-  if (!device || !shader || !computeShader) return;
+  if (!device) return;
 
   const context = canvas.getContext("webgpu");
   if (!context) {
@@ -216,11 +210,9 @@ export function drawBoids(
   }
 
   if (!pipeline || !computePipeline) {
-    initBoidsPipeline(canvas, context, boids);
+    initBoidsPipeline(canvas, context, boids, boidSize);
     return drawBoids(canvas, boids, boidSize);
   }
-
-  bindGroup = createBindGroupForVertexShader(boids);
 
   const computeCommandEncoder = device.createCommandEncoder();
   const computePassEncoder = computeCommandEncoder.beginComputePass();
@@ -252,21 +244,24 @@ export function drawBoids(
   device.queue.submit([commandEncoder.finish()]);
 }
 
-function getInputBuffer(
+function getBuffer(
   device: GPUDevice,
-  arrayBuffer: number[],
-  size: number
+  size: number,
+  arrayBuffer: number[] = [],
+  usage: GPUBufferUsageFlags = GPUBufferUsage.STORAGE
 ): GPUBuffer {
   const gpuInputBuffer = device.createBuffer({
     mappedAtCreation: true,
     size,
-    usage: GPUBufferUsage.STORAGE,
+    usage: usage,
   });
 
-  const arrayInputBuffer = gpuInputBuffer.getMappedRange();
-  new Float32Array(arrayInputBuffer).set(arrayBuffer);
-  gpuInputBuffer.unmap();
+  if (arrayBuffer.length > 0) {
+    const arrayInputBuffer = gpuInputBuffer.getMappedRange();
+    new Float32Array(arrayInputBuffer).set(arrayBuffer);
+  }
 
+  gpuInputBuffer.unmap();
   return gpuInputBuffer;
 }
 

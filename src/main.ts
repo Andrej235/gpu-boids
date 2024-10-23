@@ -1,5 +1,5 @@
 import "./style.css";
-import { Boid, drawBoids, initGPU } from "./gpu";
+import { Boid, drawBoids, initBoidsPipeline, initGPU } from "./gpu";
 import Stats from "stats.js";
 import * as dat from "dat.gui";
 import { Vector2 } from "three";
@@ -85,10 +85,27 @@ function initGUI() {
             Math.random() * 1.5 - 0.75
           );
           each.velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
+
+          const context = canvas?.getContext("webgpu");
+          if (!canvas || !context) return;
+
+          initBoidsPipeline(canvas, context, boidData.boids, boidData.size);
         });
       },
     },
     "Randomize Boids"
+  );
+
+  gui.add(
+    {
+      Update: () => {
+        const context = canvas?.getContext("webgpu");
+        if (!canvas || !context) return;
+
+        initBoidsPipeline(canvas, context, boidData.boids, boidData.size);
+      },
+    },
+    "Update"
   );
 
   if (boidData.count > 10) return;
