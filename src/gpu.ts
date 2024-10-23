@@ -32,18 +32,27 @@ export type Boid = {
   rotation: number;
 };
 
-export async function drawBoids(
+let shaderModule: GPUShaderModule | null = null;
+let computeShaderModule: GPUShaderModule | null = null;
+
+let bindGroup: GPUBindGroup | null = null;
+let computeBindGroup: GPUBindGroup | null = null;
+
+let bindGroupLayout: GPUBindGroupLayout | null = null;
+let computeBindGroupLayout: GPUBindGroupLayout | null = null;
+
+let pipeline: GPURenderPipeline | null = null;
+let computePipeline: GPUComputePipeline | null = null;
+
+let triangleSizeBuffer: GPUBuffer | null = null;
+let aspectRatioBuffer: GPUBuffer | null = null;
+
+function initBoidsPipeline(
   canvas: HTMLCanvasElement,
-  boids: Boid[],
-  boidSize: number = 0.05
+  context: GPUCanvasContext,
+  boids: Boid[]
 ) {
   if (!device || !shader || !computeShader) return;
-
-  const context = canvas.getContext("webgpu");
-  if (!context) {
-    console.log("Failed to get webgpu context");
-    return;
-  }
 
   const swapChainFormat = "bgra8unorm";
   context.configure({
@@ -51,17 +60,17 @@ export async function drawBoids(
     format: swapChainFormat,
   });
 
-  const shaderModule = device.createShaderModule({
+  shaderModule = device.createShaderModule({
     code: shader,
   });
 
-  const computeShaderModule = device.createShaderModule({
+  computeShaderModule = device.createShaderModule({
     code: computeShader,
   });
 
-  //?BUFFER *************************************************************************************************
+  //?BUFFERs *************************************************************************************************
 
-  const triangleSizeBuffer = device.createBuffer({
+  triangleSizeBuffer = device.createBuffer({
     size: 4, // 1 float
     usage:
       GPUBufferUsage.STORAGE |
@@ -69,7 +78,9 @@ export async function drawBoids(
       GPUBufferUsage.COPY_SRC,
   });
 
-  const bindGroupLayout = device.createBindGroupLayout({
+  aspectRatioBuffer = getInputBuffer(device, [canvas.width / canvas.height], 4);
+
+  bindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
@@ -95,7 +106,74 @@ export async function drawBoids(
     ],
   });
 
-  const bindGroup = device.createBindGroup({
+  computeBindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: "storage",
+        },
+      },
+    ],
+  });
+
+  bindGroup = createBindGroupForVertexShader(boids);
+
+  computeBindGroup = device.createBindGroup({
+    layout: computeBindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: triangleSizeBuffer,
+        },
+      },
+    ],
+  });
+
+  //? ********************************************************************************************************
+
+  computePipeline = device.createComputePipeline({
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [computeBindGroupLayout],
+    }),
+    compute: {
+      module: computeShaderModule,
+      entryPoint: "compute_main",
+    },
+  });
+
+  pipeline = device.createRenderPipeline({
+    vertex: {
+      module: shaderModule,
+      entryPoint: "vs_main",
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: "fs_main",
+      targets: [{ format: swapChainFormat }],
+    },
+    primitive: {
+      topology: "triangle-list",
+    },
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [bindGroupLayout],
+    }),
+  });
+}
+
+function createBindGroupForVertexShader(boids: Boid[]) {
+  if (
+    !device ||
+    !bindGroupLayout ||
+    !triangleSizeBuffer ||
+    !aspectRatioBuffer ||
+    boids.length === 0
+  )
+    return null;
+
+  return device.createBindGroup({
     layout: bindGroupLayout,
     entries: [
       {
@@ -117,65 +195,32 @@ export async function drawBoids(
       {
         binding: 2,
         resource: {
-          buffer: getInputBuffer(device, [canvas.width / canvas.height], 4),
+          buffer: aspectRatioBuffer,
         },
       },
     ],
   });
+}
 
-  const computeBindGroupLayout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: "storage",
-        },
-      },
-    ],
-  });
+export function drawBoids(
+  canvas: HTMLCanvasElement,
+  boids: Boid[],
+  boidSize: number = 0.05
+) {
+  if (!device || !shader || !computeShader) return;
 
-  const computeBindGroup = device.createBindGroup({
-    layout: computeBindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: triangleSizeBuffer,
-        },
-      },
-    ],
-  });
+  const context = canvas.getContext("webgpu");
+  if (!context) {
+    console.log("Failed to get webgpu context");
+    return;
+  }
 
-  //?BUFFER *************************************************************************************************
+  if (!pipeline || !computePipeline) {
+    initBoidsPipeline(canvas, context, boids);
+    return drawBoids(canvas, boids, boidSize);
+  }
 
-  const computePipeline = device.createComputePipeline({
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [computeBindGroupLayout],
-    }),
-    compute: {
-      module: computeShaderModule,
-      entryPoint: "compute_main",
-    },
-  });
-
-  const pipeline = device.createRenderPipeline({
-    vertex: {
-      module: shaderModule,
-      entryPoint: "vs_main",
-    },
-    fragment: {
-      module: shaderModule,
-      entryPoint: "fs_main",
-      targets: [{ format: swapChainFormat }],
-    },
-    primitive: {
-      topology: "triangle-list",
-    },
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [bindGroupLayout],
-    }),
-  });
+  bindGroup = createBindGroupForVertexShader(boids);
 
   const computeCommandEncoder = device.createCommandEncoder();
   const computePassEncoder = computeCommandEncoder.beginComputePass();
