@@ -9,12 +9,14 @@ struct ComputeOutput {
 
 @group(0) @binding(0) var<storage, read> triangleSize : f32; 
 @group(0) @binding(1) var<storage, read> aspectRatio : f32;
-@group(0) @binding(2) var<storage, read> boidsCount : u32;
+@group(0) @binding(2) var<storage, read> boidsCount : f32;
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
 @group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
 
 const STEERING_FORCE = 0.01;
 const MAX_SPEED = 0.01;
+
+const ALIGNMENT_FORCE = 1f;
 
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -25,9 +27,40 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var position = vec2(boid.position[0], boid.position[1]);
     var velocity = vec2(boid.velocity[0], boid.velocity[1]);
 
-    var desiredVelocity = avoidEdges(position);
-    var magnitude = length(desiredVelocity);
 
+    var averageXVelocity = 0f;
+    var averageYVelocity = 0f;
+    var neighbourCount = 0f;
+
+    for (var i = 0u; i < u32(boidsCount); i += 1u) {
+        if i == workgroupIndex {
+            continue;
+        }
+
+        let otherBoid = boids[i];
+
+        var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
+        var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
+
+        var distance = length(otherPosition - position);
+        if distance < 0.3 {
+            averageXVelocity += otherVelocity.x;
+            averageYVelocity += otherVelocity.y;
+            neighbourCount += 1f;
+        }
+    }
+
+
+
+    if neighbourCount != 0 {
+        averageXVelocity /= neighbourCount;
+        averageYVelocity /= neighbourCount;
+    }
+
+    var desiredVelocity = avoidEdges(position);
+    desiredVelocity += vec2(averageXVelocity, averageYVelocity) * ALIGNMENT_FORCE;
+
+    var magnitude = length(desiredVelocity);
     if magnitude > 0.0 {
         var steering = desiredVelocity - velocity;
         steering = normalize(steering) * STEERING_FORCE;
@@ -36,7 +69,6 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     position += normalize(velocity) * MAX_SPEED;
-    // position = keepOnScreen(position);
 
 
 
@@ -49,24 +81,6 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         array<f32, 2>(position.x, position.y),
         array<f32, 2>(velocity.x, velocity.y)
     );
-}
-
-fn keepOnScreen(currentPosition: vec2<f32>) -> vec2<f32> {
-    var position = currentPosition;
-
-    if position.x > 1.05 {
-        position = vec2(-1.05, position.y);
-    } else if position.x < -1.05 {
-        position = vec2(1.05, position.y);
-    }
-
-    if position.y > 1.05 {
-        position = vec2(position.x, -1.05);
-    } else if position.y < -1.05 {
-        position = vec2(position.x, 1.05);
-    }
-
-    return position;
 }
 
 fn avoidEdges(position: vec2<f32>) -> vec2<f32> {
@@ -84,7 +98,7 @@ fn avoidEdges(position: vec2<f32>) -> vec2<f32> {
         steering = vec2f(steering.x, 1);
     }
 
-    return steering;
+    return steering * 0.5;
 }
 
 fn getRotationMatrix(velocity: vec2<f32>) -> mat2x2<f32> {

@@ -73,15 +73,24 @@ export function initBoidsPipeline(
 
   //?BUFFERs *************************************************************************************************
 
-  triangleSizeBuffer = getBuffer(device, 4, [boidSize]);
-  aspectRatioBuffer = getBuffer(device, 4, [canvas.width / canvas.height]);
+  triangleSizeBuffer = getBuffer(device, "size", 4, [boidSize]);
+  aspectRatioBuffer = getBuffer(device, "aspectRatio", 4, [
+    canvas.width / canvas.height,
+  ]);
   boidsBuffer = getBuffer(
     device,
+    "boids",
     boids.length * 20,
     getWGSLRepresentation(boids)
   );
-  boidsCountBuffer = getBuffer(device, 4, [boids.length]);
-  boidsComputeOutputBuffer = getBuffer(device, boids.length * 48, []); //48 = 4 bytes per float of 3 vector4s *per boid
+  boidsCountBuffer = getBuffer(device, "boidsCount", 4, [boids.length]);
+
+  boidsComputeOutputBuffer = getBuffer(
+    device,
+    "boidsComputeOutput",
+    boids.length * 48,
+    []
+  ); //48 = 4 bytes per float of 3 vector4s *per boid
 
   bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -271,23 +280,25 @@ export function drawBoids(
 
 function getBuffer(
   device: GPUDevice,
+  label: string,
   size: number,
   arrayBuffer: number[] = [],
   usage: GPUBufferUsageFlags = GPUBufferUsage.STORAGE
 ): GPUBuffer {
-  const gpuInputBuffer = device.createBuffer({
+  const gpuBuffer = device.createBuffer({
     mappedAtCreation: true,
     size,
     usage: usage,
+    label,
   });
 
   if (arrayBuffer.length > 0) {
-    const arrayInputBuffer = gpuInputBuffer.getMappedRange();
+    const arrayInputBuffer = gpuBuffer.getMappedRange();
     new Float32Array(arrayInputBuffer).set(arrayBuffer);
   }
 
-  gpuInputBuffer.unmap();
-  return gpuInputBuffer;
+  gpuBuffer.unmap();
+  return gpuBuffer;
 }
 
 function getWGSLRepresentation(boids: Boid[]) {
