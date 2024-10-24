@@ -26,7 +26,7 @@ let boidData: {
       velocity: new Vector2(0, 0),
     },
   ],
-  size: 0.05,
+  size: 0.03,
   count: 3,
 };
 

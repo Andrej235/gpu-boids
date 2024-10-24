@@ -13,6 +13,9 @@ struct ComputeOutput {
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
 @group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
 
+const STEERING_FORCE = 0.01;
+const MAX_SPEED = 0.01;
+
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let workgroupIndex = global_id.x + global_id.y * 16;
@@ -22,8 +25,20 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var position = vec2(boid.position[0], boid.position[1]);
     var velocity = vec2(boid.velocity[0], boid.velocity[1]);
 
-    position += normalize(velocity) * .01;
-    position = keepOnScreen(position);
+    var desiredVelocity = avoidEdges(position);
+    var magnitude = length(desiredVelocity);
+
+    if magnitude > 0.0 {
+        var steering = desiredVelocity - velocity;
+        steering = normalize(steering) * STEERING_FORCE;
+
+        velocity += steering;
+    }
+
+    position += normalize(velocity) * MAX_SPEED;
+    // position = keepOnScreen(position);
+
+
 
     output[workgroupIndex] = ComputeOutput(
         getVertexPositions(position, velocity)
@@ -32,7 +47,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     //workgroupIndex will be the same for all boids calculated by the same workgroup, replace this with a global boid id
     boids[workgroupIndex] = Boid(
         array<f32, 2>(position.x, position.y),
-        boid.velocity,
+        array<f32, 2>(velocity.x, velocity.y)
     );
 }
 
@@ -52,6 +67,24 @@ fn keepOnScreen(currentPosition: vec2<f32>) -> vec2<f32> {
     }
 
     return position;
+}
+
+fn avoidEdges(position: vec2<f32>) -> vec2<f32> {
+    var steering = vec2f(0, 0);
+
+    if position.x > 0.5 {
+        steering = vec2f(-1, 0);
+    } else if position.x < -0.5 {
+        steering = vec2f(1, 0);
+    }
+
+    if position.y > 0.5 {
+        steering = vec2f(steering.x, -1);
+    } else if position.y < -0.5 {
+        steering = vec2f(steering.x, 1);
+    }
+
+    return steering;
 }
 
 fn getRotationMatrix(velocity: vec2<f32>) -> mat2x2<f32> {
