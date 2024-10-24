@@ -12,22 +12,9 @@ let boidData: {
   size: number;
   count: number;
 } = {
-  boids: [
-    {
-      center: new Vector2(0, 0),
-      velocity: new Vector2(0, 0),
-    },
-    {
-      center: new Vector2(0, 0.5),
-      velocity: new Vector2(0, 0),
-    },
-    {
-      center: new Vector2(0.3, -0.4),
-      velocity: new Vector2(0, 0),
-    },
-  ],
+  boids: [],
   size: 0.03,
-  count: 3,
+  count: 0,
 };
 
 async function init() {
@@ -45,8 +32,20 @@ async function init() {
   canvas.style.width = "100%";
   canvas.style.height = "100%";
 
-  requestAnimationFrame(update);
+  boidData.boids = Array.from(
+    {
+      length: 25,
+    },
+    () => ({
+      center: new Vector2(0, 0),
+      velocity: new Vector2(0, 0),
+    })
+  );
+  boidData.count = boidData.boids.length;
+  randomizeBoids();
+
   initGUI();
+  requestAnimationFrame(update);
 }
 
 let gui: dat.GUI | null = null;
@@ -79,20 +78,7 @@ function initGUI() {
 
   gui.add(
     {
-      "Randomize Boids": () => {
-        boidData.boids.forEach((each) => {
-          each.center.set(
-            Math.random() * 1.5 - 0.75,
-            Math.random() * 1.5 - 0.75
-          );
-          each.velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
-
-          const context = canvas?.getContext("webgpu");
-          if (!canvas || !context) return;
-
-          initBoidsPipeline(canvas, context, boidData.boids, boidData.size);
-        });
-      },
+      "Randomize Boids": randomizeBoids,
     },
     "Randomize Boids"
   );
@@ -109,7 +95,7 @@ function initGUI() {
     "Update"
   );
 
-  if (boidData.count > 10) return;
+  if (boidData.boids.length > 10) return;
 
   const guiFolders: dat.GUI[] = [];
 
@@ -123,6 +109,18 @@ function initGUI() {
     guiFolders[i].add(each.velocity, "x", -1, 1, 0.01).name("Velocity X");
 
     guiFolders[i].add(each.velocity, "y", -1, 1, 0.01).name("Velocity Y");
+  });
+}
+
+function randomizeBoids() {
+  boidData.boids.forEach((each) => {
+    each.center.set(Math.random() * 1.5 - 0.75, Math.random() * 1.5 - 0.75);
+    each.velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
+
+    const context = canvas?.getContext("webgpu");
+    if (!canvas || !context) return;
+
+    initBoidsPipeline(canvas, context, boidData.boids, boidData.size);
   });
 }
 
