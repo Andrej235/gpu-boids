@@ -1,4 +1,6 @@
 import { Vector2 } from "three";
+import { setupVertexAndFragmentShaders } from "./setup-shader";
+import { swapChainFormat } from "./constants";
 
 let device: GPUDevice | null = null;
 let shader: string | null = null;
@@ -31,13 +33,8 @@ export type Boid = {
   velocity: Vector2;
 };
 
-let shaderModule: GPUShaderModule | null = null;
 let computeShaderModule: GPUShaderModule | null = null;
-
-let bindGroup: GPUBindGroup | null = null;
 let computeBindGroup: GPUBindGroup | null = null;
-
-let bindGroupLayout: GPUBindGroupLayout | null = null;
 let computeBindGroupLayout: GPUBindGroupLayout | null = null;
 
 let pipeline: GPURenderPipeline | null = null;
@@ -50,6 +47,8 @@ let boidsCountBuffer: GPUBuffer | null = null;
 let boidsComputeOutputBuffer: GPUBuffer | null = null;
 let spatialHashBuffer: GPUBuffer | null = null;
 
+let draw: ((boidsCount: number) => void) | null = null;
+
 export function initBoidsPipeline(
   canvas: HTMLCanvasElement,
   context: GPUCanvasContext,
@@ -58,14 +57,9 @@ export function initBoidsPipeline(
 ) {
   if (!device || !shader || !computeShader) return;
 
-  const swapChainFormat = "bgra8unorm";
   context.configure({
-    device: device,
+    device,
     format: swapChainFormat,
-  });
-
-  shaderModule = device.createShaderModule({
-    code: shader,
   });
 
   computeShaderModule = device.createShaderModule({
@@ -100,18 +94,6 @@ export function initBoidsPipeline(
     [],
     GPUBufferUsage.STORAGE
   );
-
-  bindGroupLayout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-    ],
-  });
 
   computeBindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -155,18 +137,6 @@ export function initBoidsPipeline(
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
           type: "storage",
-        },
-      },
-    ],
-  });
-
-  bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: boidsComputeOutputBuffer,
         },
       },
     ],
@@ -226,23 +196,12 @@ export function initBoidsPipeline(
     },
   });
 
-  pipeline = device.createRenderPipeline({
-    vertex: {
-      module: shaderModule,
-      entryPoint: "vs_main",
-    },
-    fragment: {
-      module: shaderModule,
-      entryPoint: "fs_main",
-      targets: [{ format: swapChainFormat }],
-    },
-    primitive: {
-      topology: "triangle-list",
-    },
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [bindGroupLayout],
-    }),
-  });
+  draw = setupVertexAndFragmentShaders(
+    shader,
+    device,
+    context,
+    boidsComputeOutputBuffer
+  );
 }
 
 export function drawBoids(
@@ -258,7 +217,7 @@ export function drawBoids(
     return;
   }
 
-  if (!pipeline || !computePipeline) {
+  if (!pipeline || !computePipeline || !draw) {
     initBoidsPipeline(canvas, context, boids, boidSize);
     return drawBoids(canvas, boids, boidSize);
   }
@@ -278,26 +237,7 @@ export function drawBoids(
   computePassEncoder.end();
   device.queue.submit([computeCommandEncoder.finish()]);
 
-  const commandEncoder = device.createCommandEncoder();
-  const textureView = context.getCurrentTexture().createView();
-
-  const passEncoder = commandEncoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: textureView,
-        loadOp: "clear",
-        clearValue: { r: 0, g: 0, b: 0, a: 1 },
-        storeOp: "store",
-      },
-    ],
-  });
-
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.draw(boids.length * 3, 1, 0, 0);
-  passEncoder.end();
-
-  device.queue.submit([commandEncoder.finish()]);
+  draw(boids.length);
 }
 
 function getBuffer(
