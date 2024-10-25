@@ -1,4 +1,4 @@
-import { swapChainFormat } from "./constants";
+import { swapChainFormat } from "../constants";
 
 export function setupVertexAndFragmentShaders(
   shader: string,

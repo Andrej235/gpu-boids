@@ -1,5 +1,5 @@
 import "./style.css";
-import { Boid, drawBoids, initBoidsPipeline, initGPU } from "./gpu";
+import { Boid, drawBoids, initBoidsPipeline, initGPU } from "./gpu/gpu";
 import Stats from "stats.js";
 import * as dat from "dat.gui";
 import { Vector2 } from "three";
