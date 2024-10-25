@@ -22,7 +22,8 @@ const SEPARATION_FORCE = 10f;
 const MAX_SEPARATION_DISTANCE = 0.15;
 
 const ALIGNMENT_FORCE = 1f;
-const MAX_ALIGNMENT_DISTANCE = 0.4;
+const COHESION_FORCE = 1f;
+const MAX_ALIGNMENT_DISTANCE = 1f;
 
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -36,6 +37,8 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     var averageXVelocity = 0f;
     var averageYVelocity = 0f;
+    var averageXPosition = 0f;
+    var averageYPosition = 0f;
 
     var closeDistanceX = 0f;
     var closeDistanceY = 0f;
@@ -57,6 +60,8 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             neighbourCount += 1f;
             averageXVelocity += otherVelocity.x;
             averageYVelocity += otherVelocity.y;
+            averageXPosition += otherPosition.x;
+            averageYPosition += otherPosition.y;
         }
 
         if distance < MAX_SEPARATION_DISTANCE {
@@ -70,11 +75,14 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if neighbourCount != 0 {
         averageXVelocity /= neighbourCount;
         averageYVelocity /= neighbourCount;
+        averageXPosition /= neighbourCount;
+        averageYPosition /= neighbourCount;
     }
 
     var desiredVelocity = vec2(0f, 0f);
-    desiredVelocity += vec2(averageXVelocity, averageYVelocity) * ALIGNMENT_FORCE;
     desiredVelocity += vec2(closeDistanceX, closeDistanceY) * SEPARATION_FORCE;
+    desiredVelocity += vec2(averageXVelocity, averageYVelocity) * ALIGNMENT_FORCE;
+    desiredVelocity += vec2(averageXPosition - position.x, averageYPosition - position.y) * COHESION_FORCE;
 
     var magnitude = length(desiredVelocity);
     if magnitude > 0.0 {
