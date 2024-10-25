@@ -1,6 +1,5 @@
 import { Vector2 } from "three";
 import { setupVertexAndFragmentShaders } from "./setup-shader";
-import { swapChainFormat } from "./constants";
 
 let device: GPUDevice | null = null;
 let shader: string | null = null;
@@ -36,8 +35,6 @@ export type Boid = {
 let computeShaderModule: GPUShaderModule | null = null;
 let computeBindGroup: GPUBindGroup | null = null;
 let computeBindGroupLayout: GPUBindGroupLayout | null = null;
-
-let pipeline: GPURenderPipeline | null = null;
 let computePipeline: GPUComputePipeline | null = null;
 
 let triangleSizeBuffer: GPUBuffer | null = null;
@@ -57,8 +54,9 @@ export function initBoidsPipeline(
 ) {
   if (!device || !shader || !computeShader) return;
 
+  const swapChainFormat = "bgra8unorm";
   context.configure({
-    device,
+    device: device,
     format: swapChainFormat,
   });
 
@@ -217,7 +215,7 @@ export function drawBoids(
     return;
   }
 
-  if (!pipeline || !computePipeline || !draw) {
+  if (!computePipeline || !draw) {
     initBoidsPipeline(canvas, context, boids, boidSize);
     return drawBoids(canvas, boids, boidSize);
   }
