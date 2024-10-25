@@ -23,7 +23,7 @@ const MAX_SEPARATION_DISTANCE = 0.15;
 
 const ALIGNMENT_FORCE = 1f;
 const COHESION_FORCE = 1f;
-const MAX_ALIGNMENT_DISTANCE = 1f;
+const MAX_ALIGNMENT_DISTANCE = 0.3f;
 
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -65,8 +65,8 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
 
         if distance < MAX_SEPARATION_DISTANCE {
-            closeDistanceX += otherPosition.x - position.x;
-            closeDistanceY += otherPosition.y - position.y;
+            closeDistanceX += position.x - otherPosition.x;
+            closeDistanceY += position.y - otherPosition.y;
         }
     }
 
