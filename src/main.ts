@@ -34,7 +34,7 @@ async function init() {
 
   boidData.boids = Array.from(
     {
-      length: 25,
+      length: 100,
     },
     () => ({
       center: new Vector2(0, 0),
@@ -78,7 +78,13 @@ function initGUI() {
 
   gui.add(
     {
-      "Randomize Boids": randomizeBoids,
+      "Randomize Boids": () => {
+        randomizeBoids();
+        const context = canvas?.getContext("webgpu");
+        if (!canvas || !context) return;
+
+        initBoidsPipeline(canvas, context, boidData.boids, boidData.size);
+      },
     },
     "Randomize Boids"
   );
@@ -116,11 +122,6 @@ function randomizeBoids() {
   boidData.boids.forEach((each) => {
     each.center.set(Math.random() * 1.5 - 0.75, Math.random() * 1.5 - 0.75);
     each.velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
-
-    const context = canvas?.getContext("webgpu");
-    if (!canvas || !context) return;
-
-    initBoidsPipeline(canvas, context, boidData.boids, boidData.size);
   });
 }
 
