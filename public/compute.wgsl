@@ -7,11 +7,18 @@ struct ComputeOutput {
     vertexPositions: array<vec4<f32>, 3>
 }
 
+struct Grid {
+    size: u32,
+    cellSize: u32,
+    cells: array<u32>
+}
+
 @group(0) @binding(0) var<storage, read> triangleSize : f32; 
 @group(0) @binding(1) var<storage, read> aspectRatio : f32;
 @group(0) @binding(2) var<storage, read> boidsCount : f32;
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
 @group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
+@group(0) @binding(5) var<storage, read_write> grid : Grid;
 
 const STEERING_FORCE = 0.01;
 const MAX_SPEED = 0.01;
@@ -19,11 +26,11 @@ const MAX_SPEED = 0.01;
 const EDGE_AVOIDANCE_FORCE = 10f;
 
 const SEPARATION_FORCE = 10f;
-const MAX_SEPARATION_DISTANCE = 0.15;
+const MAX_SEPARATION_DISTANCE = 0.05;
 
 const ALIGNMENT_FORCE = 1f;
 const COHESION_FORCE = 1f;
-const MAX_ALIGNMENT_DISTANCE = 0.3f;
+const MAX_ALIGNMENT_DISTANCE = 0.15f;
 
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {

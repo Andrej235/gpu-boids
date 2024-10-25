@@ -48,6 +48,7 @@ let aspectRatioBuffer: GPUBuffer | null = null;
 let boidsBuffer: GPUBuffer | null = null;
 let boidsCountBuffer: GPUBuffer | null = null;
 let boidsComputeOutputBuffer: GPUBuffer | null = null;
+let spatialHashBuffer: GPUBuffer | null = null;
 
 export function initBoidsPipeline(
   canvas: HTMLCanvasElement,
@@ -91,6 +92,14 @@ export function initBoidsPipeline(
     boids.length * 48,
     []
   ); //48 = 4 bytes per float of 3 vector4s *per boid
+
+  spatialHashBuffer = getBuffer(
+    device,
+    "spatialHash",
+    8 + 11 * 11 * 4, //8 bytes for grid dimensions and cell size + 11x11 grid / spatial hash
+    [],
+    GPUBufferUsage.STORAGE
+  );
 
   bindGroupLayout = device.createBindGroupLayout({
     entries: [
@@ -136,6 +145,13 @@ export function initBoidsPipeline(
       },
       {
         binding: 4,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: "storage",
+        },
+      },
+      {
+        binding: 5,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
           type: "storage",
@@ -187,6 +203,12 @@ export function initBoidsPipeline(
         binding: 4,
         resource: {
           buffer: boidsComputeOutputBuffer,
+        },
+      },
+      {
+        binding: 5,
+        resource: {
+          buffer: spatialHashBuffer,
         },
       },
     ],
