@@ -1,6 +1,6 @@
 import { swapChainFormat } from "../constants";
 
-export function setupVertexAndFragmentShaders(
+export default function setupVertexAndFragmentShaders(
   shader: string,
   device: GPUDevice,
   gpuCanvasContext: GPUCanvasContext,
@@ -8,6 +8,7 @@ export function setupVertexAndFragmentShaders(
 ) {
   const shaderModule = device.createShaderModule({
     code: shader,
+    label: "vertex and fragment shader",
   });
 
   const bindGroupLayout = device.createBindGroupLayout({

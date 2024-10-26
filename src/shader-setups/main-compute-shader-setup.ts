@@ -1,4 +1,4 @@
-export function setupMainComputeShader(
+export default function setupMainComputeShader(
   shader: string,
   device: GPUDevice,
   triangleSizeBuffer: GPUBuffer,
@@ -10,6 +10,7 @@ export function setupMainComputeShader(
 ) {
   const computeShaderModule = device.createShaderModule({
     code: shader,
+    label: "main compute shader",
   });
 
   const computeBindGroupLayout = device.createBindGroupLayout({
@@ -53,7 +54,7 @@ export function setupMainComputeShader(
         binding: 5,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
-          type: "storage",
+          type: "read-only-storage",
         },
       },
     ],

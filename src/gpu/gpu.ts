@@ -1,12 +1,14 @@
 import { Vector2 } from "three";
-import { setupVertexAndFragmentShaders } from "../shader-setups/vertex-shader-setup";
+import setupVertexAndFragmentShaders from "../shader-setups/vertex-shader-setup";
+import setupMainComputeShader from "../shader-setups/main-compute-shader-setup";
 import { RunShaderPipeline } from "../shader-setups/shader-setups-types";
-import { setupMainComputeShader } from "../shader-setups/main-compute-shader-setup";
 import { getBuffer } from "./get-gpu-buffer";
+import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute=shader=setup";
 
 let device: GPUDevice | null = null;
-let shader: string | null = null;
-let computeShader: string | null = null;
+let vertexShader: string | null = null;
+let mainComputeShader: string | null = null;
+let spatialHashComputeShader: string | null = null;
 
 export async function initGPU() {
   if (!("gpu" in navigator)) {
@@ -24,10 +26,13 @@ export async function initGPU() {
   device = await adapter.requestDevice();
 
   const wgsl = await fetch("shader.wgsl");
-  shader = await wgsl.text();
+  vertexShader = await wgsl.text();
 
-  const computeWgsl = await fetch("compute.wgsl");
-  computeShader = await computeWgsl.text();
+  const computeWgsl = await fetch("main-compute.wgsl");
+  mainComputeShader = await computeWgsl.text();
+
+  const spatialHashWgsl = await fetch("spatial-hash-compute.wgsl");
+  spatialHashComputeShader = await spatialHashWgsl.text();
 }
 
 export type Boid = {
@@ -44,6 +49,7 @@ let spatialHashBuffer: GPUBuffer | null = null;
 
 let runVertAndFragShaders: RunShaderPipeline | null = null;
 let runMainComputeShader: RunShaderPipeline | null = null;
+let runSpatialHashComputeShader: RunShaderPipeline | null = null;
 
 export function initBoidsPipeline(
   canvas: HTMLCanvasElement,
@@ -51,7 +57,13 @@ export function initBoidsPipeline(
   boids: Boid[],
   boidSize: number
 ) {
-  if (!device || !shader || !computeShader) return;
+  if (
+    !device ||
+    !vertexShader ||
+    !mainComputeShader ||
+    !spatialHashComputeShader
+  )
+    return;
 
   const swapChainFormat = "bgra8unorm";
   context.configure({
@@ -91,20 +103,27 @@ export function initBoidsPipeline(
   //? ********************************************************************************************************
 
   runVertAndFragShaders = setupVertexAndFragmentShaders(
-    shader,
+    vertexShader,
     device,
     context,
     boidsComputeOutputBuffer
   );
 
   runMainComputeShader = setupMainComputeShader(
-    computeShader,
+    mainComputeShader,
     device,
     triangleSizeBuffer,
     aspectRatioBuffer,
     boidsCountBuffer,
     boidsBuffer,
     boidsComputeOutputBuffer,
+    spatialHashBuffer
+  );
+
+  runSpatialHashComputeShader = setupSpatialHashComputeShader(
+    spatialHashComputeShader,
+    device,
+    boidsBuffer,
     spatialHashBuffer
   );
 }
@@ -116,7 +135,11 @@ export function drawBoids(
 ) {
   if (!device) return;
 
-  if (!runVertAndFragShaders || !runMainComputeShader) {
+  if (
+    !runVertAndFragShaders ||
+    !runMainComputeShader ||
+    !runSpatialHashComputeShader
+  ) {
     const context = canvas.getContext("webgpu");
     if (!context) {
       console.log("Failed to get webgpu context");
@@ -127,8 +150,9 @@ export function drawBoids(
     return drawBoids(canvas, boids, boidSize);
   }
 
-  runVertAndFragShaders(boids.length);
+  runSpatialHashComputeShader(boids.length);
   runMainComputeShader(boids.length);
+  runVertAndFragShaders(boids.length);
 }
 
 function getWGSLRepresentation(boids: Boid[]) {

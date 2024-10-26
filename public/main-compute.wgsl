@@ -18,7 +18,7 @@ struct Grid {
 @group(0) @binding(2) var<storage, read> boidsCount : f32;
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
 @group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
-@group(0) @binding(5) var<storage, read_write> grid : Grid;
+@group(0) @binding(5) var<storage, read> spatialHash : Grid;
 
 const STEERING_FORCE = 0.01;
 const MAX_SPEED = 0.01;
