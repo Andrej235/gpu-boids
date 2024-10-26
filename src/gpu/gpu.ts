@@ -95,7 +95,7 @@ export function initBoidsPipeline(
   spatialHashBuffer = getBuffer(
     device,
     "spatialHash",
-    8 + 11 * 11 * 4, //8 bytes for grid dimensions and cell size + 11x11 grid / spatial hash
+    11 * 11 * (16 * 4 + 4), //11x11 grid with (16 boids in each cell and a index count)
     [],
     GPUBufferUsage.STORAGE
   );
@@ -124,6 +124,7 @@ export function initBoidsPipeline(
     spatialHashComputeShader,
     device,
     boidsBuffer,
+    boidsCountBuffer,
     spatialHashBuffer
   );
 }

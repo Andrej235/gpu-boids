@@ -8,8 +8,8 @@ struct ComputeOutput {
 }
 
 struct Grid {
-    size: u32,
-    cellSize: u32,
+    size: f32,
+    cellSize: f32,
     cells: array<u32>
 }
 

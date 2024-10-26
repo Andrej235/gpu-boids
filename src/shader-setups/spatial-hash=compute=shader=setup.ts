@@ -2,6 +2,7 @@ export default function setupSpatialHashComputeShader(
   shader: string,
   device: GPUDevice,
   boidsBuffer: GPUBuffer,
+  boidsCountBuffer: GPUBuffer,
   spatialHashBuffer: GPUBuffer
 ) {
   const shaderModule = device.createShaderModule({
@@ -22,6 +23,13 @@ export default function setupSpatialHashComputeShader(
         binding: 1,
         visibility: GPUShaderStage.COMPUTE,
         buffer: {
+          type: "read-only-storage",
+        },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
           type: "storage",
         },
       },
@@ -39,6 +47,12 @@ export default function setupSpatialHashComputeShader(
       },
       {
         binding: 1,
+        resource: {
+          buffer: boidsCountBuffer,
+        },
+      },
+      {
+        binding: 2,
         resource: {
           buffer: spatialHashBuffer,
         },
