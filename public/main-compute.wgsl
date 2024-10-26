@@ -21,7 +21,7 @@ struct Cell {
 @group(0) @binding(5) var<storage, read> spatialHash: array<Cell, 64>;
 
 const STEERING_FORCE = 0.01;
-const MAX_SPEED = 0.01;
+const MAX_SPEED = 0.0025;
 
 const EDGE_AVOIDANCE_FORCE = 10f;
 
@@ -68,15 +68,19 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
                 var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
 
-                neighbourCount += 1f;
+                var distance = length(otherPosition - position);
+                if distance < MAX_ALIGNMENT_DISTANCE {
+                    neighbourCount += 1f;
+                    averageXVelocity += otherVelocity.x;
+                    averageYVelocity += otherVelocity.y;
+                    averageXPosition += otherPosition.x;
+                    averageYPosition += otherPosition.y;
+                }
 
-                averageXVelocity += otherVelocity.x;
-                averageYVelocity += otherVelocity.y;
-                averageXPosition += otherPosition.x;
-                averageYPosition += otherPosition.y;
-
-                closeDistanceX += position.x - otherPosition.x;
-                closeDistanceY += position.y - otherPosition.y;
+                if distance < MAX_SEPARATION_DISTANCE {
+                    closeDistanceX += position.x - otherPosition.x;
+                    closeDistanceY += position.y - otherPosition.y;
+                }
             }
         }
     }
