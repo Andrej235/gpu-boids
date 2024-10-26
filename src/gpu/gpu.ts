@@ -4,11 +4,13 @@ import setupMainComputeShader from "../shader-setups/main-compute-shader-setup";
 import { RunShaderPipeline } from "../shader-setups/shader-setups-types";
 import { getBuffer } from "./get-gpu-buffer";
 import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute=shader=setup";
+import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
 
 let device: GPUDevice | null = null;
 let vertexShader: string | null = null;
 let mainComputeShader: string | null = null;
 let spatialHashComputeShader: string | null = null;
+let clearSpatialHashComputeShader: string | null = null;
 
 export async function initGPU() {
   if (!("gpu" in navigator)) {
@@ -33,6 +35,9 @@ export async function initGPU() {
 
   const spatialHashWgsl = await fetch("spatial-hash-compute.wgsl");
   spatialHashComputeShader = await spatialHashWgsl.text();
+
+  const clearSpatialHashWgsl = await fetch("spatial-hash-clear-compute.wgsl");
+  clearSpatialHashComputeShader = await clearSpatialHashWgsl.text();
 }
 
 export type Boid = {
@@ -50,6 +55,7 @@ let spatialHashBuffer: GPUBuffer | null = null;
 let runVertAndFragShaders: RunShaderPipeline | null = null;
 let runMainComputeShader: RunShaderPipeline | null = null;
 let runSpatialHashComputeShader: RunShaderPipeline | null = null;
+let runClearSpatialHashComputeShader: RunShaderPipeline | null = null;
 
 export function initBoidsPipeline(
   canvas: HTMLCanvasElement,
@@ -61,7 +67,8 @@ export function initBoidsPipeline(
     !device ||
     !vertexShader ||
     !mainComputeShader ||
-    !spatialHashComputeShader
+    !spatialHashComputeShader ||
+    !clearSpatialHashComputeShader
   )
     return;
 
@@ -127,6 +134,12 @@ export function initBoidsPipeline(
     boidsCountBuffer,
     spatialHashBuffer
   );
+
+  runClearSpatialHashComputeShader = setupClearSpatialHashComputeShader(
+    clearSpatialHashComputeShader,
+    device,
+    spatialHashBuffer
+  );
 }
 
 export function drawBoids(
@@ -139,7 +152,8 @@ export function drawBoids(
   if (
     !runVertAndFragShaders ||
     !runMainComputeShader ||
-    !runSpatialHashComputeShader
+    !runSpatialHashComputeShader ||
+    !runClearSpatialHashComputeShader
   ) {
     const context = canvas.getContext("webgpu");
     if (!context) {
@@ -151,6 +165,7 @@ export function drawBoids(
     return drawBoids(canvas, boids, boidSize);
   }
 
+  runClearSpatialHashComputeShader(0);
   runSpatialHashComputeShader(boids.length);
   runMainComputeShader(boids.length);
   runVertAndFragShaders(boids.length);

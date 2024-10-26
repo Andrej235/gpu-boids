@@ -13,7 +13,7 @@ struct Cell {
     boidIndices: array<u32, 32>,
 };
 
-@group(0) @binding(0) var<storage, read> triangleSize : f32; 
+@group(0) @binding(0) var<storage, read> triangleSize : f32;
 @group(0) @binding(1) var<storage, read> aspectRatio : f32;
 @group(0) @binding(2) var<storage, read> boidsCount : f32;
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
@@ -58,37 +58,25 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let neighborX = (cellIndex % GRID_SIZE) + dx;
             let neighborY = (cellIndex / GRID_SIZE) + dy;
 
-            if neighborX < 0 || neighborX >= i32(GRID_SIZE) || neighborY < 0 || neighborY >= i32(GRID_SIZE) {
-                continue;
-            }
-
-            let neighborCellIndex = u32(neighborY * i32(GRID_SIZE) + neighborX);
+            let neighborCellIndex = neighborY * GRID_SIZE + neighborX;
             let cell = spatialHash[neighborCellIndex];
 
             for (var j = 0u; j < cell.count; j++) {
                 let otherIndex = cell.boidIndices[j];
-
-                if i32(otherIndex) == cellIndex {
-                    continue;
-                }
-
                 let otherBoid = boids[otherIndex];
+
                 var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
                 var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
 
-                var distance = length(otherPosition - position);
-                if distance < MAX_ALIGNMENT_DISTANCE {
-                    neighbourCount += 1f;
-                    averageXVelocity += otherVelocity.x;
-                    averageYVelocity += otherVelocity.y;
-                    averageXPosition += otherPosition.x;
-                    averageYPosition += otherPosition.y;
-                }
+                neighbourCount += 1f;
 
-                if distance < MAX_SEPARATION_DISTANCE {
-                    closeDistanceX += position.x - otherPosition.x;
-                    closeDistanceY += position.y - otherPosition.y;
-                }
+                averageXVelocity += otherVelocity.x;
+                averageYVelocity += otherVelocity.y;
+                averageXPosition += otherPosition.x;
+                averageYPosition += otherPosition.y;
+
+                closeDistanceX += position.x - otherPosition.x;
+                closeDistanceY += position.y - otherPosition.y;
             }
         }
     }

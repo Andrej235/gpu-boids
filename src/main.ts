@@ -6,7 +6,7 @@ import { Vector2 } from "three";
 
 let stats: Stats | null = null;
 let canvas: HTMLCanvasElement | null = null;
-const initialBoidsCount = 100;
+const initialBoidsCount = 1000;
 
 let boidData: {
   boids: Boid[];
