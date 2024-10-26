@@ -7,18 +7,18 @@ struct ComputeOutput {
     vertexPositions: array<vec4<f32>, 3>
 }
 
-struct Grid {
-    size: f32,
-    cellSize: f32,
-    cells: array<u32>
-}
+const GRID_SIZE: i32 = 8;
+struct Cell {
+    count: u32, 
+    boidIndices: array<u32, 32>,
+};
 
 @group(0) @binding(0) var<storage, read> triangleSize : f32; 
 @group(0) @binding(1) var<storage, read> aspectRatio : f32;
 @group(0) @binding(2) var<storage, read> boidsCount : f32;
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
 @group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
-@group(0) @binding(5) var<storage, read> spatialHash : Grid;
+@group(0) @binding(5) var<storage, read> spatialHash: array<Cell, 64>;
 
 const STEERING_FORCE = 0.01;
 const MAX_SPEED = 0.01;
@@ -52,32 +52,70 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     var neighbourCount = 0f;
 
-    for (var i = 0u; i < u32(boidsCount); i += 1u) {
-        if i == workgroupIndex {
-            continue;
-        }
+    let cellIndex = getCellIndex(boid.position);
+    for (var dx = -1; dx <= 1; dx++) {
+        for (var dy = -1; dy <= 1; dy++) {
+            let neighborX = (cellIndex % GRID_SIZE) + dx;
+            let neighborY = (cellIndex / GRID_SIZE) + dy;
 
-        let otherBoid = boids[i];
+            if neighborX < 0 || neighborX >= i32(GRID_SIZE) || neighborY < 0 || neighborY >= i32(GRID_SIZE) {
+                continue;
+            }
 
-        var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
-        var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
+            let neighborCellIndex = u32(neighborY * i32(GRID_SIZE) + neighborX);
+            let cell = spatialHash[neighborCellIndex];
 
-        var distance = length(otherPosition - position);
-        if distance < MAX_ALIGNMENT_DISTANCE {
-            neighbourCount += 1f;
-            averageXVelocity += otherVelocity.x;
-            averageYVelocity += otherVelocity.y;
-            averageXPosition += otherPosition.x;
-            averageYPosition += otherPosition.y;
-        }
+            for (var j = 0u; j < cell.count; j++) {
+                let otherIndex = cell.boidIndices[j];
 
-        if distance < MAX_SEPARATION_DISTANCE {
-            closeDistanceX += position.x - otherPosition.x;
-            closeDistanceY += position.y - otherPosition.y;
+                if i32(otherIndex) == cellIndex {
+                    continue;
+                }
+
+                let otherBoid = boids[otherIndex];
+                var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
+                var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
+
+                var distance = length(otherPosition - position);
+                if distance < MAX_ALIGNMENT_DISTANCE {
+                    neighbourCount += 1f;
+                    averageXVelocity += otherVelocity.x;
+                    averageYVelocity += otherVelocity.y;
+                    averageXPosition += otherPosition.x;
+                    averageYPosition += otherPosition.y;
+                }
+
+                if distance < MAX_SEPARATION_DISTANCE {
+                    closeDistanceX += position.x - otherPosition.x;
+                    closeDistanceY += position.y - otherPosition.y;
+                }
+            }
         }
     }
 
+    // for (var j = 0u; j < u32(boidsCount); j++) {
+    //     if j == workgroupIndex {
+    //         continue;
+    //     }
 
+    //     let otherBoid = boids[j];
+    //     var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
+    //     var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
+
+    //     var distance = length(otherPosition - position);
+    //     if distance < MAX_ALIGNMENT_DISTANCE {
+    //         neighbourCount += 1f;
+    //         averageXVelocity += otherVelocity.x;
+    //         averageYVelocity += otherVelocity.y;
+    //         averageXPosition += otherPosition.x;
+    //         averageYPosition += otherPosition.y;
+    //     }
+
+    //     if distance < MAX_SEPARATION_DISTANCE {
+    //         closeDistanceX += position.x - otherPosition.x;
+    //         closeDistanceY += position.y - otherPosition.y;
+    //     }
+    // }
 
     if neighbourCount != 0 {
         averageXVelocity /= neighbourCount;
@@ -131,6 +169,13 @@ fn validatePosition(currentPosition: vec2<f32>) -> vec2<f32> {
     }
 
     return position;
+}
+
+fn getCellIndex(position: array<f32, 2>) -> i32 {
+    let xi = floor(position[0] * f32(GRID_SIZE));
+    let yi = floor(position[1] * f32(GRID_SIZE));
+    let i: i32 = i32(xi * f32(GRID_SIZE) + yi);
+    return i;
 }
 
 //TODO: Fix and implement this

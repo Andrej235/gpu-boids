@@ -12,6 +12,7 @@ export default function setupVertexAndFragmentShaders(
   });
 
   const bindGroupLayout = device.createBindGroupLayout({
+    label: "vertex and fragment shader bind group layout",
     entries: [
       {
         binding: 0,

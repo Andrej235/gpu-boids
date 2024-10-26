@@ -11,6 +11,7 @@ export default function setupSpatialHashComputeShader(
   });
 
   const bindGroupLayout = device.createBindGroupLayout({
+    label: "spatial hash compute bind group layout",
     entries: [
       {
         binding: 0,

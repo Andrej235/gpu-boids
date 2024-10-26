@@ -14,6 +14,7 @@ export default function setupMainComputeShader(
   });
 
   const computeBindGroupLayout = device.createBindGroupLayout({
+    label: "main compute bind group layout",
     entries: [
       {
         binding: 0,

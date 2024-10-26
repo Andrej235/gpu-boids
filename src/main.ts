@@ -6,6 +6,7 @@ import { Vector2 } from "three";
 
 let stats: Stats | null = null;
 let canvas: HTMLCanvasElement | null = null;
+const initialBoidsCount = 100;
 
 let boidData: {
   boids: Boid[];
@@ -34,7 +35,7 @@ async function init() {
 
   boidData.boids = Array.from(
     {
-      length: 100,
+      length: initialBoidsCount,
     },
     () => ({
       center: new Vector2(0, 0),
