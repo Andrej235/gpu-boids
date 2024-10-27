@@ -17,16 +17,10 @@ struct Cell {
 fn compute_spatial_hash_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let workgroupIndex = global_id.x + global_id.y * 16;
 
-    if workgroupIndex >= boidsCount {
-        return;
-    }
-
     let cellIndex = getCellIndex(boids[workgroupIndex].position);
-    if spatialHash[cellIndex].count < 32u {
+    if spatialHash[cellIndex].count < 31u {
+        spatialHash[cellIndex].boidIndices[spatialHash[cellIndex].count] = workgroupIndex;
         spatialHash[cellIndex].count += 1u;
-        if spatialHash[cellIndex].count < 32u {
-            spatialHash[cellIndex].boidIndices[spatialHash[cellIndex].count] = workgroupIndex;
-        }
     }
 }
 

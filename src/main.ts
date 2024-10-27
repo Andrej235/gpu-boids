@@ -6,7 +6,7 @@ import { Vector2 } from "three";
 
 let stats: Stats | null = null;
 let canvas: HTMLCanvasElement | null = null;
-const initialBoidsCount = 1000; //5592405 is maximum, limited by the buffer size of boidsComputeOutputBuffer
+const initialBoidsCount = 100; //5592405 is maximum, limited by the buffer size of boidsComputeOutputBuffer
 
 let boidData: {
   boids: Boid[];
@@ -14,7 +14,7 @@ let boidData: {
   count: number;
 } = {
   boids: [],
-  size: 0.005,
+  size: 0.0175,
   count: 0,
 };
 
@@ -53,7 +53,7 @@ let gui: dat.GUI | null = null;
 
 function initGUI() {
   gui = new dat.GUI();
-  gui.add(boidData, "size", 0.0001, 0.5, 0.01).name("Boid Size");
+  gui.add(boidData, "size", 0.0001, 0.075, 0.001).name("Boid Size");
 
   gui.add(boidData, "count", 1, undefined, 1).onChange((newCount) => {
     const oldCount = boidData.boids.length;
@@ -121,7 +121,7 @@ function initGUI() {
 
 function randomizeBoids() {
   boidData.boids.forEach((each) => {
-    each.center.set(Math.random() * 1.5 - 0.75, Math.random() * 1.5 - 0.75);
+    each.center.set(Math.random(), Math.random());
     each.velocity.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
   });
 }

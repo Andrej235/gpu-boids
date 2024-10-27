@@ -102,7 +102,7 @@ export function initBoidsPipeline(
   spatialHashBuffer = getBuffer(
     device,
     "spatialHash",
-    8 * 8 * (32 * 4 + 4), //8x8 grid with (32 boids in each cell and a index count)
+    16 * 16 * (32 * 4 + 4), //8x8 grid with (32 boids in each cell and a index count)
     [],
     GPUBufferUsage.STORAGE
   );
