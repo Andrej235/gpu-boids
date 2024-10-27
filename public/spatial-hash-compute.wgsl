@@ -5,7 +5,7 @@ struct Boid {
 
 const GRID_SIZE: u32 = 8;
 struct Cell {
-    count: atomic<u32>,
+    count: u32,
     boidIndices: array<u32, 32>,
 };
 
@@ -22,10 +22,10 @@ fn compute_spatial_hash_main(@builtin(global_invocation_id) global_id: vec3<u32>
     }
 
     let cellIndex = getCellIndex(boids[workgroupIndex].position);
-    if atomicLoad(&spatialHash[cellIndex].count) < 32u {
-        let idx = atomicAdd(&spatialHash[cellIndex].count, 1u);
-        if idx < 32u {
-            spatialHash[cellIndex].boidIndices[idx] = workgroupIndex;
+    if spatialHash[cellIndex].count < 32u {
+        spatialHash[cellIndex].count += 1u;
+        if spatialHash[cellIndex].count < 32u {
+            spatialHash[cellIndex].boidIndices[spatialHash[cellIndex].count] = workgroupIndex;
         }
     }
 }

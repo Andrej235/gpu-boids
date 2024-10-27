@@ -59,10 +59,9 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let neighborY = (cellIndex / GRID_SIZE) + dy;
 
             let neighborCellIndex = neighborY * GRID_SIZE + neighborX;
-            let cell = spatialHash[neighborCellIndex];
 
-            for (var j = 0u; j < cell.count; j++) {
-                let otherIndex = cell.boidIndices[j];
+            for (var j = 0u; j < spatialHash[neighborCellIndex].count; j++) {
+                let otherIndex = spatialHash[neighborCellIndex].boidIndices[j];
                 let otherBoid = boids[otherIndex];
 
                 var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
