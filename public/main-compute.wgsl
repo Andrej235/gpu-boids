@@ -4,7 +4,7 @@ struct Boid {
 }
 
 struct ComputeOutput {
-    vertexPositions: array<vec4<f32>, 3>
+    vertexPositions: array<vec2<f32>, 3>
 }
 
 const GRID_SIZE: i32 = 8;
@@ -200,7 +200,7 @@ fn getRotationMatrix(velocity: vec2<f32>) -> mat2x2<f32> {
     return rotationMatrix;
 }
 
-fn getVertexPositions(position: vec2<f32>, velocity: vec2<f32>) -> array<vec4<f32>, 3> {
+fn getVertexPositions(position: vec2<f32>, velocity: vec2<f32>) -> array<vec2<f32>, 3> {
     let rotationMatrix = getRotationMatrix(velocity);
 
     //Possible micro optimization: redundant calculations, make (triangleSize * 0.707) a constant
@@ -211,10 +211,10 @@ fn getVertexPositions(position: vec2<f32>, velocity: vec2<f32>) -> array<vec4<f3
     );
 
     let aspectRatioVector = vec2<f32>(1.0, aspectRatio);
-    let output = array<vec4<f32>, 3>(
-        vec4(rotationMatrix * relativeVertexPositions[0] * aspectRatioVector + position, 0.0, 1.0),
-        vec4(rotationMatrix * relativeVertexPositions[1] * aspectRatioVector + position, 0.0, 1.0),
-        vec4(rotationMatrix * relativeVertexPositions[2] * aspectRatioVector + position, 0.0, 1.0),
+    let output = array<vec2<f32>, 3>(
+        rotationMatrix * relativeVertexPositions[0] * aspectRatioVector + position,
+        rotationMatrix * relativeVertexPositions[1] * aspectRatioVector + position,
+        rotationMatrix * relativeVertexPositions[2] * aspectRatioVector + position,
     );
 
     return output;

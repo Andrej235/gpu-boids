@@ -95,9 +95,9 @@ export function initBoidsPipeline(
   boidsComputeOutputBuffer = getBuffer(
     device,
     "boidsComputeOutput",
-    boids.length * 48,
+    boids.length * 24,
     []
-  ); //48 = 4 bytes per float of 3 vector4s *per boid
+  ); //24 = 4 bytes per float of 3 vector2s *per boid
 
   spatialHashBuffer = getBuffer(
     device,
