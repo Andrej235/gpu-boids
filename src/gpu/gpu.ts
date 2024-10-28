@@ -165,7 +165,7 @@ export function drawBoids(
     return drawBoids(canvas, boids, boidSize);
   }
 
-  runClearSpatialHashComputeShader(0);
+  runClearSpatialHashComputeShader(boids.length);
   runSpatialHashComputeShader(boids.length);
   runMainComputeShader(boids.length);
   runVertAndFragShaders(boids.length);

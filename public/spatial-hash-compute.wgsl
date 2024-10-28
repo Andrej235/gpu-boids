@@ -5,7 +5,7 @@ struct Boid {
 
 const GRID_SIZE: u32 = 8;
 struct Cell {
-    count: u32,
+    count: atomic<u32>,
     boidIndices: array<u32, 32>,
 };
 
@@ -16,12 +16,14 @@ struct Cell {
 @compute @workgroup_size(16, 16)
 fn compute_spatial_hash_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let workgroupIndex = global_id.x + global_id.y * 16;
-
-    let cellIndex = getCellIndex(boids[workgroupIndex].position);
-    if spatialHash[cellIndex].count < 31u {
-        spatialHash[cellIndex].boidIndices[spatialHash[cellIndex].count] = workgroupIndex;
-        spatialHash[cellIndex].count += 1u;
+    if workgroupIndex >= u32(boidsCount) {
+        return;
     }
+
+    //TODO: This skips the first index of spatialHash[0].boidIndices, fix it.
+    //For some reason changing the clear function to reset the count to -1 doesn't work even if the type is changed to i32 instead of u32
+    let index = atomicAdd(&spatialHash[0].count, 1u);
+    spatialHash[0].boidIndices[index] = workgroupIndex;
 }
 
 fn getCellIndex(position: array<f32, 2>) -> u32 {
