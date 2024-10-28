@@ -6,7 +6,7 @@ import { Vector2 } from "three";
 
 let stats: Stats | null = null;
 let canvas: HTMLCanvasElement | null = null;
-const initialBoidsCount = 32; //5592405 is maximum, limited by the buffer size of boidsComputeOutputBuffer
+const initialBoidsCount = 128; //5592405 is maximum, limited by the buffer size of boidsComputeOutputBuffer
 
 let boidData: {
   boids: Boid[];

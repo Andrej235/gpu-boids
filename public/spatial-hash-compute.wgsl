@@ -20,10 +20,16 @@ fn compute_spatial_hash_main(@builtin(global_invocation_id) global_id: vec3<u32>
         return;
     }
 
+    let bucketIndex = getCellIndex(boids[workgroupIndex].position);
+
     //TODO: This skips the first index of spatialHash[0].boidIndices, fix it.
-    //For some reason changing the clear function to reset the count to -1 doesn't work even if the type is changed to i32 instead of u32
-    let index = atomicAdd(&spatialHash[0].count, 1u);
-    spatialHash[0].boidIndices[index] = workgroupIndex;
+    //For some reason changing the clear function to reset the count to -1 doesn't work even if the type is changed to i32 instead of u32, and instead break the whole thing
+    let index = atomicAdd(&spatialHash[bucketIndex].count, 1u);
+
+    if index >= 32u {
+        return;
+    }
+    spatialHash[bucketIndex].boidIndices[index] = workgroupIndex;
 }
 
 fn getCellIndex(position: array<f32, 2>) -> u32 {

@@ -25,7 +25,7 @@ const MAX_SPEED = 0.001;
 const EDGE_AVOIDANCE_FORCE = 10f;
 
 const SEPARATION_FORCE = 10f;
-const MAX_SEPARATION_DISTANCE = 0.1075;
+const MAX_SEPARATION_DISTANCE = 0.075;
 
 const ALIGNMENT_FORCE = 1f;
 const COHESION_FORCE = 1f;
@@ -48,52 +48,30 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     var avoid = vec2(0.0, 0.0);
 
-    // let cellIndex = getCellIndex(boid.position);
-    // for (var dx = -1i; dx <= 1; dx++) {
-    //     for (var dy = -1i; dy <= 1; dy++) {
-    //         let neighborX = (cellIndex % GRID_SIZE) + dx;
-    //         let neighborY = (cellIndex / GRID_SIZE) + dy;
+    let cellIndex = getCellIndex(boid.position);
+    for (var dx = -1i; dx <= 1; dx++) {
+        for (var dy = -1i; dy <= 1; dy++) {
+            let neighborX = (cellIndex % GRID_SIZE) + dx;
+            let neighborY = (cellIndex / GRID_SIZE) + dy;
 
-    //         if neighborX >= 0 && neighborX < GRID_SIZE && neighborY >= 0 && neighborY < GRID_SIZE {
-    //             let neighborCellIndex = neighborY * GRID_SIZE + neighborX;
+            if neighborX >= 0 && neighborX < GRID_SIZE && neighborY >= 0 && neighborY < GRID_SIZE {
+                let neighborCellIndex = neighborY * GRID_SIZE + neighborX;
 
-    //             for (var j = 0u; j < spatialHash[neighborCellIndex].count; j++) {
-    //                 let otherIndex = spatialHash[neighborCellIndex].boidIndices[j];
-    //                 let otherBoid = boids[otherIndex];
+                for (var j = 0u; j < spatialHash[neighborCellIndex].count; j++) {
+                    let otherIndex = spatialHash[neighborCellIndex].boidIndices[j];
+                    let otherBoid = boids[otherIndex];
 
-    //                 var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
-    //                 var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
+                    var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
+                    var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
 
-    //                 let distance = distance(otherPosition, position);
-    //                 if distance < MAX_SEPARATION_DISTANCE {
-    //                     avoid -= (otherPosition - position);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-    for (var j = 0u; j < spatialHash[0].count; j++) {
-        let otherIndex = spatialHash[0].boidIndices[j];
-        let otherBoid = boids[otherIndex];
-        var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
-
-        let distance = distance(otherPosition, position);
-        if distance < MAX_SEPARATION_DISTANCE {
-            avoid -= (otherPosition - position);
+                    let distance = distance(otherPosition, position);
+                    if distance < MAX_SEPARATION_DISTANCE {
+                        avoid -= (otherPosition - position);
+                    }
+                }
+            }
         }
     }
-
-    // for (var i = 0u; i < u32(boidsCount); i++) {
-    //     let otherBoid = boids[i];
-    //     var otherPosition = vec2(otherBoid.position[0], otherBoid.position[1]);
-
-    //     let distance = distance(otherPosition, position);
-    //     if distance < MAX_SEPARATION_DISTANCE {
-    //         avoid -= (otherPosition - position);
-    //     }
-    // }
-
 
     velocity += avoid;
     velocity = normalize(velocity) * MAX_SPEED;
@@ -128,8 +106,7 @@ fn validatePosition(currentPosition: vec2<f32>) -> vec2<f32> {
 fn getCellIndex(position: array<f32, 2>) -> i32 {
     let xi = floor(position[0] * f32(GRID_SIZE));
     let yi = floor(position[1] * f32(GRID_SIZE));
-    let i: i32 = i32(xi * f32(GRID_SIZE) + yi);
-    return i;
+    return i32(xi + yi * f32(GRID_SIZE));
 }
 
 //TODO: Fix and implement this
