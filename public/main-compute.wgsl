@@ -23,7 +23,7 @@ struct Cell {
 const MAX_SPEED = 0.001;
 const MAX_STEERING_FORCE = 0.0001;
 
-const EDGE_AVOIDANCE_FORCE = 10f;
+const EDGE_AVOIDANCE_FORCE = 0.1;
 
 const SEPARATION_FORCE = 10f;
 const MAX_SEPARATION_DISTANCE = 0.05;
@@ -67,31 +67,36 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let distance = distance(otherPosition, position);
                     if distance < MAX_SEPARATION_DISTANCE {
                         avoid += position - otherPosition;
+                    } if distance < MAX_ALIGNMENT_DISTANCE {
+                        averageVelocity += otherVelocity;
+                        neighbourCount += 1f;
                     }
-                    // else if distance < MAX_ALIGNMENT_DISTANCE {
-                    //     averageVelocity += otherVelocity;
-                    //     neighbourCount += 1f;
-                    // }
                 }
             }
         }
     }
 
+    var desiredVelocity = vec2(0f, 0f);
     if length(avoid) > 0f {
-        let desiredVelocity = normalize(avoid);
-        var steering = desiredVelocity - velocity;
-        steering = normalize(steering) * MAX_STEERING_FORCE;
-        velocity += steering;
+        desiredVelocity += avoid;
     }
 
-    // if neighbourCount > 0f {
-    //     averageVelocity /= neighbourCount;
-    //     velocity += (averageVelocity - velocity) * MAX_STEERING_FORCE;
-    // }
+    if neighbourCount > 0f {
+        averageVelocity /= neighbourCount;
+        desiredVelocity += averageVelocity;
+    }
 
-    velocity = normalize(velocity) * MAX_SPEED;
+    let edgeAvoidance = avoidEdges(position, velocity);
+    if length(edgeAvoidance) > 0f {
+        desiredVelocity += edgeAvoidance * EDGE_AVOIDANCE_FORCE;
+    }
+
+    var steering = desiredVelocity - velocity;
+    steering = normalize(steering) * MAX_STEERING_FORCE;
+    velocity = normalize(velocity + steering) * MAX_SPEED;
+
     position += velocity;
-    position = validatePosition(position);
+    // position = validatePosition(position);
 
     output[workgroupIndex] = ComputeOutput(getVertexPositions(position, velocity));
     boids[workgroupIndex] = Boid(
@@ -100,23 +105,23 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     );
 }
 
-fn validatePosition(currentPosition: vec2<f32>) -> vec2<f32> {
-    var position = currentPosition;
+// fn validatePosition(currentPosition: vec2<f32>) -> vec2<f32> {
+//     var position = currentPosition;
 
-    if position.x > 1.0 {
-        position.x = 0.0;
-    } else if position.x < 0.0 {
-        position.x = 1.0;
-    }
+//     if position.x > 1.0 {
+//         position = vec2<f32>(0.5, 0.5);
+//     } else if position.x < 0.0 {
+//         position = vec2<f32>(0.5, 0.5);
+//     }
 
-    if position.y > 1.0 {
-        position.y = 0.0;
-    } else if position.y < 0.0 {
-        position.y = 1.0;
-    }
+//     if position.y > 1.0 {
+//         position = vec2<f32>(0.5, 0.5);
+//     } else if position.y < 0.0 {
+//         position = vec2<f32>(0.5, 0.5);
+//     }
 
-    return position;
-}
+//     return position;
+// }
 
 fn getCellIndex(position: array<f32, 2>) -> i32 {
     let xi = floor(position[0] * f32(GRID_SIZE));
@@ -125,22 +130,22 @@ fn getCellIndex(position: array<f32, 2>) -> i32 {
 }
 
 //TODO: Fix and implement this
-fn avoidEdges(position: vec2<f32>, velocity: vec2<f32>) -> vec2<f32> {
-    var steering = vec2f(0.0, 0.0);
+fn avoidEdges(position: vec2<f32>, currentVelocity: vec2<f32>) -> vec2<f32> {
+    var velocity = currentVelocity;
 
-    if position.x + velocity.x > 0.7 {
-        steering = vec2f(-velocity.x, velocity.y);
-    } else if position.x + velocity.x < -0.7 {
-        steering = vec2f(-velocity.x, velocity.y);
+    if position.x < 0.15 {
+        velocity.x = velocity.x + EDGE_AVOIDANCE_FORCE;
     }
-
-    if position.y + velocity.y > 0.7 {
-        steering = vec2f(steering.x, -velocity.y);
-    } else if position.y + velocity.y < -0.7 {
-        steering = vec2f(steering.x, -velocity.y);
+    if position.x > 0.85 {
+        velocity.x = velocity.x - EDGE_AVOIDANCE_FORCE;
     }
-
-    return steering;
+    if position.y > 0.15 {
+        velocity.y = velocity.y - EDGE_AVOIDANCE_FORCE;
+    }
+    if position.y < 0.85 {
+        velocity.y = velocity.y + EDGE_AVOIDANCE_FORCE;
+    }
+    return velocity;
 }
 
 fn getRotationMatrix(velocity: vec2<f32>) -> mat2x2<f32> {
