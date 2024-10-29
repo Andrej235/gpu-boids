@@ -21,11 +21,12 @@ struct Cell {
 @group(0) @binding(5) var<storage, read> spatialHash: array<Cell, 64>;
 
 const MAX_SPEED = 0.001;
+const MAX_STEERING_FORCE = 0.0001;
 
 const EDGE_AVOIDANCE_FORCE = 10f;
 
 const SEPARATION_FORCE = 10f;
-const MAX_SEPARATION_DISTANCE = 0.075;
+const MAX_SEPARATION_DISTANCE = 0.05;
 
 const ALIGNMENT_FORCE = 1f;
 const COHESION_FORCE = 1f;
@@ -40,8 +41,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var position = vec2(boid.position[0], boid.position[1]);
     var velocity = vec2(boid.velocity[0], boid.velocity[1]);
 
-    var averageXVelocity = 0f;
-    var averageYVelocity = 0f;
+    var averageVelocity = vec2(0f, 0f);
     var averageXPosition = 0f;
     var averageYPosition = 0f;
     var neighbourCount = 0f;
@@ -66,14 +66,29 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
                     let distance = distance(otherPosition, position);
                     if distance < MAX_SEPARATION_DISTANCE {
-                        avoid -= (otherPosition - position);
+                        avoid += position - otherPosition;
                     }
+                    // else if distance < MAX_ALIGNMENT_DISTANCE {
+                    //     averageVelocity += otherVelocity;
+                    //     neighbourCount += 1f;
+                    // }
                 }
             }
         }
     }
 
-    velocity += avoid;
+    if length(avoid) > 0f {
+        let desiredVelocity = normalize(avoid);
+        var steering = desiredVelocity - velocity;
+        steering = normalize(steering) * MAX_STEERING_FORCE;
+        velocity += steering;
+    }
+
+    // if neighbourCount > 0f {
+    //     averageVelocity /= neighbourCount;
+    //     velocity += (averageVelocity - velocity) * MAX_STEERING_FORCE;
+    // }
+
     velocity = normalize(velocity) * MAX_SPEED;
     position += velocity;
     position = validatePosition(position);
