@@ -14,7 +14,7 @@ let boidData: {
   count: number;
 } = {
   boids: [],
-  size: 0.0175,
+  size: 0.01,
   count: 0,
 };
 

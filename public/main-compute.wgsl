@@ -23,14 +23,14 @@ struct Cell {
 const MAX_SPEED = 0.001;
 const MAX_STEERING_FORCE = 0.0001;
 
-const EDGE_AVOIDANCE_FORCE = 0.1;
+const EDGE_AVOIDANCE_FORCE = 0.05;
 
-const SEPARATION_FORCE = 10f;
-const MAX_SEPARATION_DISTANCE = 0.05;
+const SEPARATION_FORCE = 1f;
+const MAX_SEPARATION_DISTANCE = 0.025;
 
-const ALIGNMENT_FORCE = 1f;
-const COHESION_FORCE = 1f;
-const MAX_ALIGNMENT_DISTANCE = 0.125f;
+const ALIGNMENT_FORCE = 0.5f;
+const COHESION_FORCE = 0.0125f;
+const VISUAL_RANGE = 0.1f;
 
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -42,8 +42,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var velocity = vec2(boid.velocity[0], boid.velocity[1]);
 
     var averageVelocity = vec2(0f, 0f);
-    var averageXPosition = 0f;
-    var averageYPosition = 0f;
+    var averagePosition = vec2(0f, 0f);
     var neighbourCount = 0f;
 
     var avoid = vec2(0.0, 0.0);
@@ -67,8 +66,9 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     let distance = distance(otherPosition, position);
                     if distance < MAX_SEPARATION_DISTANCE {
                         avoid += position - otherPosition;
-                    } if distance < MAX_ALIGNMENT_DISTANCE {
+                    } if distance < VISUAL_RANGE {
                         averageVelocity += otherVelocity;
+                        averagePosition += otherPosition;
                         neighbourCount += 1f;
                     }
                 }
@@ -83,7 +83,10 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     if neighbourCount > 0f {
         averageVelocity /= neighbourCount;
-        desiredVelocity += averageVelocity;
+        desiredVelocity += averageVelocity * ALIGNMENT_FORCE;
+
+        averagePosition /= neighbourCount;
+        desiredVelocity += (averagePosition - position) * COHESION_FORCE;
     }
 
     let edgeAvoidance = avoidEdges(position, velocity);
@@ -93,10 +96,9 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     var steering = desiredVelocity - velocity;
     steering = normalize(steering) * MAX_STEERING_FORCE;
-    velocity = normalize(velocity + steering) * MAX_SPEED;
 
+    velocity = normalize(velocity + steering) * MAX_SPEED;
     position += velocity;
-    // position = validatePosition(position);
 
     output[workgroupIndex] = ComputeOutput(getVertexPositions(position, velocity));
     boids[workgroupIndex] = Boid(
@@ -105,44 +107,25 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     );
 }
 
-// fn validatePosition(currentPosition: vec2<f32>) -> vec2<f32> {
-//     var position = currentPosition;
-
-//     if position.x > 1.0 {
-//         position = vec2<f32>(0.5, 0.5);
-//     } else if position.x < 0.0 {
-//         position = vec2<f32>(0.5, 0.5);
-//     }
-
-//     if position.y > 1.0 {
-//         position = vec2<f32>(0.5, 0.5);
-//     } else if position.y < 0.0 {
-//         position = vec2<f32>(0.5, 0.5);
-//     }
-
-//     return position;
-// }
-
 fn getCellIndex(position: array<f32, 2>) -> i32 {
     let xi = floor(position[0] * f32(GRID_SIZE));
     let yi = floor(position[1] * f32(GRID_SIZE));
     return i32(xi + yi * f32(GRID_SIZE));
 }
 
-//TODO: Fix and implement this
 fn avoidEdges(position: vec2<f32>, currentVelocity: vec2<f32>) -> vec2<f32> {
     var velocity = currentVelocity;
 
-    if position.x < 0.15 {
+    if position.x < 0.1 {
         velocity.x = velocity.x + EDGE_AVOIDANCE_FORCE;
     }
-    if position.x > 0.85 {
+    if position.x > 0.9 {
         velocity.x = velocity.x - EDGE_AVOIDANCE_FORCE;
     }
-    if position.y > 0.15 {
+    if position.y > 0.1 {
         velocity.y = velocity.y - EDGE_AVOIDANCE_FORCE;
     }
-    if position.y < 0.85 {
+    if position.y < 0.9 {
         velocity.y = velocity.y + EDGE_AVOIDANCE_FORCE;
     }
     return velocity;
