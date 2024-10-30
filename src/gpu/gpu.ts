@@ -12,8 +12,6 @@ export type Boid = {
 };
 
 export default class GPUController {
-  private initialized: boolean = false;
-
   private device: GPUDevice = null!;
   private vertexShader: string = null!;
   private mainComputeShader: string = null!;
@@ -32,20 +30,47 @@ export default class GPUController {
   private runSpatialHashComputeShader: RunShaderPipeline = null!;
   private runClearSpatialHashComputeShader: RunShaderPipeline = null!;
 
-  constructor(canvas: HTMLCanvasElement, boids: Boid[], boidSize: number) {
-    this.initGPU(canvas, boids, boidSize);
-  }
+  private canvas: HTMLCanvasElement;
+  private context: GPUCanvasContext;
+  private boids: Boid[];
+  private boidSize: number;
 
-  private async initGPU(
+  private constructor(
     canvas: HTMLCanvasElement,
     boids: Boid[],
     boidSize: number
   ) {
+    this.canvas = canvas;
+    const context = canvas.getContext("webgpu");
+    if (!context) throw new Error("Failed to get GPU context from canvas.");
+    this.context = context;
+
+    this.boids = boids;
+    if (boids.length < 1) throw new Error("No boids provided.");
+
+    this.boidSize = boidSize;
+    if (boidSize <= 0) throw new Error("Boid size must be greater than 0.");
+  }
+
+  static async create(
+    canvas: HTMLCanvasElement,
+    boids: Boid[],
+    boidSize: number
+  ) {
+    const newController = new GPUController(canvas, boids, boidSize);
+
+    await newController.initGPU();
+    await newController.initShaders();
+    newController.initBoidsPipeline();
+
+    return newController;
+  }
+
+  private async initGPU() {
     if (!("gpu" in navigator)) {
-      console.log(
+      throw new Error(
         "WebGPU is not supported. Enable chrome://flags/#enable-unsafe-webgpu flag."
       );
-      return;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
@@ -54,7 +79,9 @@ export default class GPUController {
       return;
     }
     this.device = await adapter.requestDevice();
+  }
 
+  private async initShaders() {
     const wgsl = await fetch("shader.wgsl");
     this.vertexShader = await wgsl.text();
 
@@ -66,48 +93,37 @@ export default class GPUController {
 
     const clearSpatialHashWgsl = await fetch("spatial-hash-clear-compute.wgsl");
     this.clearSpatialHashComputeShader = await clearSpatialHashWgsl.text();
-
-    this.initBoidsPipeline(canvas, boids, boidSize);
-
-    this.initialized = true;
   }
 
-  initBoidsPipeline(
-    canvas: HTMLCanvasElement,
-    boids: Boid[],
-    boidSize: number
-  ) {
-    const context = canvas.getContext("webgpu");
-    if (!context) {
-      throw new Error("Failed to get GPU context from canvas.");
-    }
-
+  private initBoidsPipeline() {
     const swapChainFormat = "bgra8unorm";
-    context.configure({
+    this.context.configure({
       device: this.device,
       format: swapChainFormat,
     });
 
     //?BUFFERs *************************************************************************************************
 
-    this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [boidSize]);
+    this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [
+      this.boidSize,
+    ]);
     this.aspectRatioBuffer = getBuffer(this.device, "aspectRatio", 4, [
-      canvas.width / canvas.height,
+      this.canvas.width / this.canvas.height,
     ]);
     this.boidsBuffer = getBuffer(
       this.device,
       "boids",
-      boids.length * 20,
-      this.getWGSLRepresentation(boids)
+      this.boids.length * 20,
+      this.getWGSLRepresentation(this.boids)
     );
     this.boidsCountBuffer = getBuffer(this.device, "boidsCount", 4, [
-      boids.length,
+      this.boids.length,
     ]);
 
     this.boidsComputeOutputBuffer = getBuffer(
       this.device,
       "boidsComputeOutput",
-      boids.length * 24,
+      this.boids.length * 24,
       []
     ); //24 = 4 bytes per float of 3 vector2s *per boid
 
@@ -124,7 +140,7 @@ export default class GPUController {
     this.runVertAndFragShaders = setupVertexAndFragmentShaders(
       this.vertexShader,
       this.device,
-      context,
+      this.context,
       this.boidsComputeOutputBuffer
     );
 
@@ -155,15 +171,13 @@ export default class GPUController {
   }
 
   drawBoids(boids: Boid[]): void {
-    if (!this.initialized) return;
-
     this.runClearSpatialHashComputeShader(boids.length);
     this.runSpatialHashComputeShader(boids.length);
     this.runMainComputeShader(boids.length);
     this.runVertAndFragShaders(boids.length);
   }
 
-  getWGSLRepresentation(boids: Boid[]) {
+  private getWGSLRepresentation(boids: Boid[]) {
     return boids.flatMap((boid) => [
       boid.center.x,
       boid.center.y,

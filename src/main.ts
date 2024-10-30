@@ -44,7 +44,7 @@ async function init() {
   boidData.count = boidData.boids.length;
   randomizeBoids();
 
-  gpu = new GPUController(canvas, boidData.boids, boidData.size);
+  gpu = await GPUController.create(canvas, boidData.boids, boidData.size);
   requestAnimationFrame(update);
 }
 
