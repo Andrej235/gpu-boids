@@ -1,13 +1,13 @@
 struct Boid {
-  position: array<f32, 2>,
-  velocity: array<f32, 2>
+  position: vec2<f32>,
+  velocity: vec2<f32>
 }
 
 struct ComputeOutput {
     vertexPositions: array<vec2<f32>, 3>
 }
 
-const GRID_SIZE: i32 = 8;
+const GRID_SIZE: i32 = 10;
 struct Cell {
     count: u32, 
     boidIndices: array<u32, 32>,
@@ -18,7 +18,7 @@ struct Cell {
 @group(0) @binding(2) var<storage, read> boidsCount : f32;
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
 @group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
-@group(0) @binding(5) var<storage, read> spatialHash: array<Cell, 64>;
+@group(0) @binding(5) var<storage, read> spatialHash: array<Cell, 100>;
 
 const MAX_SPEED = 0.001;
 const MAX_STEERING_FORCE = 0.0001;
@@ -26,11 +26,11 @@ const MAX_STEERING_FORCE = 0.0001;
 const EDGE_AVOIDANCE_FORCE = 0.05;
 
 const SEPARATION_FORCE = 1f;
-const MAX_SEPARATION_DISTANCE = 0.025;
+const MAX_SEPARATION_DISTANCE = 0.02;
 
 const ALIGNMENT_FORCE = 0.5f;
 const COHESION_FORCE = 0.0125f;
-const VISUAL_RANGE = 0.1f;
+const VISUAL_RANGE = 0.07f;
 
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -38,8 +38,8 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let boid = boids[workgroupIndex];
 
-    var position = vec2(boid.position[0], boid.position[1]);
-    var velocity = vec2(boid.velocity[0], boid.velocity[1]);
+    var position = boid.position;
+    var velocity = boid.velocity;
 
     var averageVelocity = vec2(0f, 0f);
     var averagePosition = vec2(0f, 0f);
@@ -77,9 +77,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     var desiredVelocity = vec2(0f, 0f);
-    if length(avoid) > 0f {
-        desiredVelocity += avoid;
-    }
+    desiredVelocity += avoid;
 
     if neighbourCount > 0f {
         averageVelocity /= neighbourCount;
@@ -89,10 +87,7 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         desiredVelocity += (averagePosition - position) * COHESION_FORCE;
     }
 
-    let edgeAvoidance = avoidEdges(position, velocity);
-    if length(edgeAvoidance) > 0f {
-        desiredVelocity += edgeAvoidance * EDGE_AVOIDANCE_FORCE;
-    }
+    desiredVelocity += avoidEdges(position, velocity) * EDGE_AVOIDANCE_FORCE;
 
     var steering = desiredVelocity - velocity;
     steering = normalize(steering) * MAX_STEERING_FORCE;
@@ -102,14 +97,14 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     output[workgroupIndex] = ComputeOutput(getVertexPositions(position, velocity));
     boids[workgroupIndex] = Boid(
-        array<f32, 2>(position.x, position.y),
-        array<f32, 2>(velocity.x, velocity.y)
+        position,
+        velocity
     );
 }
 
-fn getCellIndex(position: array<f32, 2>) -> i32 {
-    let xi = floor(position[0] * f32(GRID_SIZE));
-    let yi = floor(position[1] * f32(GRID_SIZE));
+fn getCellIndex(position: vec2<f32>) -> i32 {
+    let xi = floor(position.x * f32(GRID_SIZE));
+    let yi = floor(position.y * f32(GRID_SIZE));
     return i32(xi + yi * f32(GRID_SIZE));
 }
 
