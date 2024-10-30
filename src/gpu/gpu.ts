@@ -6,177 +6,170 @@ import { getBuffer } from "./get-gpu-buffer";
 import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute=shader=setup";
 import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
 
-let device: GPUDevice | null = null;
-let vertexShader: string | null = null;
-let mainComputeShader: string | null = null;
-let spatialHashComputeShader: string | null = null;
-let clearSpatialHashComputeShader: string | null = null;
-
-export async function initGPU() {
-  if (!("gpu" in navigator)) {
-    console.log(
-      "WebGPU is not supported. Enable chrome://flags/#enable-unsafe-webgpu flag."
-    );
-    return;
-  }
-
-  const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) {
-    console.log("Failed to get GPU adapter.");
-    return;
-  }
-  device = await adapter.requestDevice();
-
-  const wgsl = await fetch("shader.wgsl");
-  vertexShader = await wgsl.text();
-
-  const computeWgsl = await fetch("main-compute.wgsl");
-  mainComputeShader = await computeWgsl.text();
-
-  const spatialHashWgsl = await fetch("spatial-hash-compute.wgsl");
-  spatialHashComputeShader = await spatialHashWgsl.text();
-
-  const clearSpatialHashWgsl = await fetch("spatial-hash-clear-compute.wgsl");
-  clearSpatialHashComputeShader = await clearSpatialHashWgsl.text();
-}
-
 export type Boid = {
   center: Vector2;
   velocity: Vector2;
 };
 
-let triangleSizeBuffer: GPUBuffer | null = null;
-let aspectRatioBuffer: GPUBuffer | null = null;
-let boidsBuffer: GPUBuffer | null = null;
-let boidsCountBuffer: GPUBuffer | null = null;
-let boidsComputeOutputBuffer: GPUBuffer | null = null;
-let spatialHashBuffer: GPUBuffer | null = null;
+export default class GPUController {
+  private initialized: boolean = false;
 
-let runVertAndFragShaders: RunShaderPipeline | null = null;
-let runMainComputeShader: RunShaderPipeline | null = null;
-let runSpatialHashComputeShader: RunShaderPipeline | null = null;
-let runClearSpatialHashComputeShader: RunShaderPipeline | null = null;
+  private device: GPUDevice = null!;
+  private vertexShader: string = null!;
+  private mainComputeShader: string = null!;
+  private spatialHashComputeShader: string = null!;
+  private clearSpatialHashComputeShader: string = null!;
 
-export function initBoidsPipeline(
-  canvas: HTMLCanvasElement,
-  context: GPUCanvasContext,
-  boids: Boid[],
-  boidSize: number
-) {
-  if (
-    !device ||
-    !vertexShader ||
-    !mainComputeShader ||
-    !spatialHashComputeShader ||
-    !clearSpatialHashComputeShader
-  )
-    return;
+  private triangleSizeBuffer: GPUBuffer = null!;
+  private aspectRatioBuffer: GPUBuffer = null!;
+  private boidsBuffer: GPUBuffer = null!;
+  private boidsCountBuffer: GPUBuffer = null!;
+  private boidsComputeOutputBuffer: GPUBuffer = null!;
+  private spatialHashBuffer: GPUBuffer = null!;
 
-  const swapChainFormat = "bgra8unorm";
-  context.configure({
-    device: device,
-    format: swapChainFormat,
-  });
+  private runVertAndFragShaders: RunShaderPipeline = null!;
+  private runMainComputeShader: RunShaderPipeline = null!;
+  private runSpatialHashComputeShader: RunShaderPipeline = null!;
+  private runClearSpatialHashComputeShader: RunShaderPipeline = null!;
 
-  //?BUFFERs *************************************************************************************************
+  constructor(canvas: HTMLCanvasElement, boids: Boid[], boidSize: number) {
+    this.initGPU(canvas, boids, boidSize);
+  }
 
-  triangleSizeBuffer = getBuffer(device, "size", 4, [boidSize]);
-  aspectRatioBuffer = getBuffer(device, "aspectRatio", 4, [
-    canvas.width / canvas.height,
-  ]);
-  boidsBuffer = getBuffer(
-    device,
-    "boids",
-    boids.length * 20,
-    getWGSLRepresentation(boids)
-  );
-  boidsCountBuffer = getBuffer(device, "boidsCount", 4, [boids.length]);
-
-  boidsComputeOutputBuffer = getBuffer(
-    device,
-    "boidsComputeOutput",
-    boids.length * 24,
-    []
-  ); //24 = 4 bytes per float of 3 vector2s *per boid
-
-  spatialHashBuffer = getBuffer(
-    device,
-    "spatialHash",
-    16 * 16 * (32 * 4 + 4), //8x8 grid with (32 boids in each cell and a index count)
-    [],
-    GPUBufferUsage.STORAGE
-  );
-
-  //? ********************************************************************************************************
-
-  runVertAndFragShaders = setupVertexAndFragmentShaders(
-    vertexShader,
-    device,
-    context,
-    boidsComputeOutputBuffer
-  );
-
-  runMainComputeShader = setupMainComputeShader(
-    mainComputeShader,
-    device,
-    triangleSizeBuffer,
-    aspectRatioBuffer,
-    boidsCountBuffer,
-    boidsBuffer,
-    boidsComputeOutputBuffer,
-    spatialHashBuffer
-  );
-
-  runSpatialHashComputeShader = setupSpatialHashComputeShader(
-    spatialHashComputeShader,
-    device,
-    boidsBuffer,
-    boidsCountBuffer,
-    spatialHashBuffer
-  );
-
-  runClearSpatialHashComputeShader = setupClearSpatialHashComputeShader(
-    clearSpatialHashComputeShader,
-    device,
-    spatialHashBuffer
-  );
-}
-
-export function drawBoids(
-  canvas: HTMLCanvasElement,
-  boids: Boid[],
-  boidSize: number = 0.05
-) {
-  if (!device) return;
-
-  if (
-    !runVertAndFragShaders ||
-    !runMainComputeShader ||
-    !runSpatialHashComputeShader ||
-    !runClearSpatialHashComputeShader
+  private async initGPU(
+    canvas: HTMLCanvasElement,
+    boids: Boid[],
+    boidSize: number
   ) {
-    const context = canvas.getContext("webgpu");
-    if (!context) {
-      console.log("Failed to get webgpu context");
+    if (!("gpu" in navigator)) {
+      console.log(
+        "WebGPU is not supported. Enable chrome://flags/#enable-unsafe-webgpu flag."
+      );
       return;
     }
 
-    initBoidsPipeline(canvas, context, boids, boidSize);
-    return drawBoids(canvas, boids, boidSize);
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      console.log("Failed to get GPU adapter.");
+      return;
+    }
+    this.device = await adapter.requestDevice();
+
+    const wgsl = await fetch("shader.wgsl");
+    this.vertexShader = await wgsl.text();
+
+    const computeWgsl = await fetch("main-compute.wgsl");
+    this.mainComputeShader = await computeWgsl.text();
+
+    const spatialHashWgsl = await fetch("spatial-hash-compute.wgsl");
+    this.spatialHashComputeShader = await spatialHashWgsl.text();
+
+    const clearSpatialHashWgsl = await fetch("spatial-hash-clear-compute.wgsl");
+    this.clearSpatialHashComputeShader = await clearSpatialHashWgsl.text();
+
+    this.initBoidsPipeline(canvas, boids, boidSize);
+
+    this.initialized = true;
   }
 
-  runClearSpatialHashComputeShader(boids.length);
-  runSpatialHashComputeShader(boids.length);
-  runMainComputeShader(boids.length);
-  runVertAndFragShaders(boids.length);
-}
+  initBoidsPipeline(
+    canvas: HTMLCanvasElement,
+    boids: Boid[],
+    boidSize: number
+  ) {
+    const context = canvas.getContext("webgpu");
+    if (!context) {
+      throw new Error("Failed to get GPU context from canvas.");
+    }
 
-function getWGSLRepresentation(boids: Boid[]) {
-  return boids.flatMap((boid) => [
-    boid.center.x,
-    boid.center.y,
-    boid.velocity.x,
-    boid.velocity.y,
-    0,
-  ]);
+    const swapChainFormat = "bgra8unorm";
+    context.configure({
+      device: this.device,
+      format: swapChainFormat,
+    });
+
+    //?BUFFERs *************************************************************************************************
+
+    this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [boidSize]);
+    this.aspectRatioBuffer = getBuffer(this.device, "aspectRatio", 4, [
+      canvas.width / canvas.height,
+    ]);
+    this.boidsBuffer = getBuffer(
+      this.device,
+      "boids",
+      boids.length * 20,
+      this.getWGSLRepresentation(boids)
+    );
+    this.boidsCountBuffer = getBuffer(this.device, "boidsCount", 4, [
+      boids.length,
+    ]);
+
+    this.boidsComputeOutputBuffer = getBuffer(
+      this.device,
+      "boidsComputeOutput",
+      boids.length * 24,
+      []
+    ); //24 = 4 bytes per float of 3 vector2s *per boid
+
+    this.spatialHashBuffer = getBuffer(
+      this.device,
+      "spatialHash",
+      16 * 16 * (32 * 4 + 4), //8x8 grid with (32 boids in each cell and a index count)
+      [],
+      GPUBufferUsage.STORAGE
+    );
+
+    //? ********************************************************************************************************
+
+    this.runVertAndFragShaders = setupVertexAndFragmentShaders(
+      this.vertexShader,
+      this.device,
+      context,
+      this.boidsComputeOutputBuffer
+    );
+
+    this.runMainComputeShader = setupMainComputeShader(
+      this.mainComputeShader,
+      this.device,
+      this.triangleSizeBuffer,
+      this.aspectRatioBuffer,
+      this.boidsCountBuffer,
+      this.boidsBuffer,
+      this.boidsComputeOutputBuffer,
+      this.spatialHashBuffer
+    );
+
+    this.runSpatialHashComputeShader = setupSpatialHashComputeShader(
+      this.spatialHashComputeShader,
+      this.device,
+      this.boidsBuffer,
+      this.boidsCountBuffer,
+      this.spatialHashBuffer
+    );
+
+    this.runClearSpatialHashComputeShader = setupClearSpatialHashComputeShader(
+      this.clearSpatialHashComputeShader,
+      this.device,
+      this.spatialHashBuffer
+    );
+  }
+
+  drawBoids(boids: Boid[]): void {
+    if (!this.initialized) return;
+
+    this.runClearSpatialHashComputeShader(boids.length);
+    this.runSpatialHashComputeShader(boids.length);
+    this.runMainComputeShader(boids.length);
+    this.runVertAndFragShaders(boids.length);
+  }
+
+  getWGSLRepresentation(boids: Boid[]) {
+    return boids.flatMap((boid) => [
+      boid.center.x,
+      boid.center.y,
+      boid.velocity.x,
+      boid.velocity.y,
+      0,
+    ]);
+  }
 }
