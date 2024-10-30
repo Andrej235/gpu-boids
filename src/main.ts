@@ -62,7 +62,7 @@ function update() {
   }
 
   stats?.begin();
-  gpu.drawBoids(boidData.boids);
+  gpu.drawBoids();
   stats?.end();
 
   requestAnimationFrame(update);

@@ -1,3 +1,5 @@
+import type { RunComputeShaderPipeline } from "./shader-setups-types";
+
 export default function setupMainComputeShader(
   shader: string,
   device: GPUDevice,
@@ -7,7 +9,7 @@ export default function setupMainComputeShader(
   boidsBuffer: GPUBuffer,
   boidsComputeOutputBuffer: GPUBuffer,
   spatialHashBuffer: GPUBuffer
-) {
+): RunComputeShaderPipeline {
   const computeShaderModule = device.createShaderModule({
     code: shader,
     label: "main compute shader",
@@ -113,20 +115,15 @@ export default function setupMainComputeShader(
     },
   });
 
-  return (boidsCount: number) => {
+  return (x, y, z) => {
     const computeCommandEncoder = device.createCommandEncoder();
     const computePassEncoder = computeCommandEncoder.beginComputePass();
+    
     computePassEncoder.setPipeline(computePipeline);
     computePassEncoder.setBindGroup(0, computeBindGroup);
-
-    const boidLenghtSqrt = Math.ceil(Math.sqrt(boidsCount));
-    computePassEncoder.dispatchWorkgroups(
-      Math.ceil(boidLenghtSqrt / 16),
-      Math.ceil(boidLenghtSqrt / 16),
-      1
-    );
-
+    computePassEncoder.dispatchWorkgroups(x, y, z);
     computePassEncoder.end();
+
     device.queue.submit([computeCommandEncoder.finish()]);
   };
 }

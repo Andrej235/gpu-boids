@@ -1,11 +1,12 @@
 import { swapChainFormat } from "../constants";
+import { RunVertexShaderPipeline } from "./shader-setups-types";
 
 export default function setupVertexAndFragmentShaders(
   shader: string,
   device: GPUDevice,
   gpuCanvasContext: GPUCanvasContext,
   boidsComputeOutputBuffer: GPUBuffer
-) {
+): RunVertexShaderPipeline {
   const shaderModule = device.createShaderModule({
     code: shader,
     label: "vertex and fragment shader",

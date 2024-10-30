@@ -1,8 +1,10 @@
+import type { RunComputeShaderPipeline } from "./shader-setups-types";
+
 export default function setupClearSpatialHashComputeShader(
   shader: string,
   device: GPUDevice,
   spatialHashBuffer: GPUBuffer
-) {
+): RunComputeShaderPipeline {
   const shaderModule = device.createShaderModule({
     code: shader,
     label: "clear spatial hash compute shader",
@@ -43,14 +45,15 @@ export default function setupClearSpatialHashComputeShader(
     },
   });
 
-  return () => {
+  return (x, y, z) => {
     const computeCommandEncoder = device.createCommandEncoder();
     const computePassEncoder = computeCommandEncoder.beginComputePass();
+    
     computePassEncoder.setPipeline(computePipeline);
     computePassEncoder.setBindGroup(0, bindGroup);
-
-    computePassEncoder.dispatchWorkgroups(1);
+    computePassEncoder.dispatchWorkgroups(x, y, z);
     computePassEncoder.end();
+
     device.queue.submit([computeCommandEncoder.finish()]);
   };
 }

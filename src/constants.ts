@@ -1,1 +1,1 @@
-export const swapChainFormat = "bgra8unorm";
+export const swapChainFormat: GPUTextureFormat = "bgra8unorm";

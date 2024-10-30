@@ -1,10 +1,12 @@
+import type { RunComputeShaderPipeline } from "./shader-setups-types";
+
 export default function setupSpatialHashComputeShader(
   shader: string,
   device: GPUDevice,
   boidsBuffer: GPUBuffer,
   boidsCountBuffer: GPUBuffer,
   spatialHashBuffer: GPUBuffer
-) {
+): RunComputeShaderPipeline {
   const shaderModule = device.createShaderModule({
     code: shader,
     label: "spatial hash compute shader",
@@ -71,20 +73,15 @@ export default function setupSpatialHashComputeShader(
     },
   });
 
-  return (boidsCount: number) => {
+  return (x, y, z) => {
     const computeCommandEncoder = device.createCommandEncoder();
     const computePassEncoder = computeCommandEncoder.beginComputePass();
+    
     computePassEncoder.setPipeline(computePipeline);
     computePassEncoder.setBindGroup(0, bindGroup);
-
-    const boidLenghtSqrt = Math.ceil(Math.sqrt(boidsCount));
-    computePassEncoder.dispatchWorkgroups(
-      Math.ceil(boidLenghtSqrt / 16),
-      Math.ceil(boidLenghtSqrt / 16),
-      1
-    );
-
+    computePassEncoder.dispatchWorkgroups(x, y, z);
     computePassEncoder.end();
+
     device.queue.submit([computeCommandEncoder.finish()]);
   };
 }
