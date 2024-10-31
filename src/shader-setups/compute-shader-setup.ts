@@ -13,8 +13,9 @@ export default class ComputeShaderSetup<
     shader: string,
     device: GPUDevice,
     buffers: Buffers,
-    bindGroupLayout: GPUBindGroupLayout,
-    bufferOrder: (keyof Buffers)[]
+    bindGroupTeplate: {
+      [key in keyof Buffers]: GPUBufferBindingType;
+    }
   ) {
     this.device = device;
     this.buffers = buffers;
@@ -22,6 +23,36 @@ export default class ComputeShaderSetup<
     const computeShaderModule = device.createShaderModule({
       code: shader,
       label: "main compute shader",
+    });
+
+    const bindGroupLayoutEntries: GPUBindGroupLayoutEntry[] = [];
+    const bindGroupEntries: GPUBindGroupEntry[] = [];
+
+    const bufferKeys = Object.keys(bindGroupTeplate);
+    for (let i = 0; i < bufferKeys.length; i++) {
+      const key = bufferKeys[i];
+      const type = bindGroupTeplate[key];
+
+      bindGroupLayoutEntries.push({
+        binding: i,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type,
+        },
+      });
+
+      bindGroupEntries.push({
+        binding: i,
+        resource: {
+          label: `${label} buffer: ${key.toString()}`,
+          buffer: this.buffers[key],
+        },
+      });
+    }
+
+    const bindGroupLayout = device.createBindGroupLayout({
+      label: `${label} bind group layout`,
+      entries: bindGroupLayoutEntries,
     });
 
     this.computePipeline = device.createComputePipeline({
@@ -37,13 +68,7 @@ export default class ComputeShaderSetup<
     this.bindGroup = device.createBindGroup({
       label: label + " bind group",
       layout: bindGroupLayout,
-      entries: bufferOrder.map((key, i) => ({
-        binding: i,
-        resource: {
-          label: `${label} buffer: ${key.toString()}`,
-          buffer: this.buffers[key],
-        },
-      })),
+      entries: bindGroupEntries,
     });
   }
 

@@ -11,54 +11,6 @@ export default function setupMainComputeShader(
   boidsComputeOutputBuffer: GPUBuffer,
   spatialHashBuffer: GPUBuffer
 ): RunComputeShaderPipeline {
-  const computeBindGroupLayout = device.createBindGroupLayout({
-    label: "main compute bind group layout",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-      {
-        binding: 3,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: "storage",
-        },
-      },
-      {
-        binding: 4,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: "storage",
-        },
-      },
-      {
-        binding: 5,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: "read-only-storage",
-        },
-      },
-    ],
-  });
-
   const setup = new ComputeShaderSetup(
     "main compute shader",
     shader,
@@ -71,15 +23,14 @@ export default function setupMainComputeShader(
       boidsComputeOutputBuffer,
       spatialHashBuffer,
     },
-    computeBindGroupLayout,
-    [
-      "triangleSizeBuffer",
-      "aspectRatioBuffer",
-      "boidsCountBuffer",
-      "boidsBuffer",
-      "boidsComputeOutputBuffer",
-      "spatialHashBuffer",
-    ]
+    {
+      triangleSizeBuffer: "read-only-storage",
+      aspectRatioBuffer: "read-only-storage",
+      boidsCountBuffer: "read-only-storage",
+      boidsBuffer: "storage",
+      boidsComputeOutputBuffer: "storage",
+      spatialHashBuffer: "read-only-storage",
+    }
   );
 
   return (x, y, z) => setup.run(x, y, z);
