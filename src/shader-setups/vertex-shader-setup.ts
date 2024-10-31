@@ -1,4 +1,4 @@
-import { swapChainFormat } from "../constants";
+import { swapChainFormat } from "../utility/constants";
 import { RunVertexShaderPipeline } from "./shader-setups-types";
 
 export default function setupVertexAndFragmentShaders(

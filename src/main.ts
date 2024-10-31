@@ -2,6 +2,7 @@ import "./style.css";
 import GPUController, { Boid } from "./gpu/gpu";
 import Stats from "stats.js";
 import { Vector2 } from "three";
+import GUIController from "./gui-controller";
 
 let stats: Stats | null = null;
 let canvas: HTMLCanvasElement | null = null;
@@ -45,6 +46,7 @@ async function init() {
   randomizeBoids();
 
   gpu = await GPUController.create(canvas, boidData.boids, boidData.size);
+  new GUIController(gpu);
   requestAnimationFrame(update);
 }
 

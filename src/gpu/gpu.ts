@@ -8,12 +8,16 @@ import type {
 import { getBuffer } from "./get-gpu-buffer";
 import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute=shader=setup";
 import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
-import { swapChainFormat } from "../constants";
+import { swapChainFormat } from "../utility/constants";
 import getTextFromFile from "../utility/get-text-from-file";
 
 export type Boid = {
   center: Vector2;
   velocity: Vector2;
+};
+
+export type BoidParameters = {
+  boidSize: number;
 };
 
 export default class GPUController {
@@ -68,7 +72,7 @@ export default class GPUController {
     const newController = new GPUController(canvas, boids, boidSize);
 
     await newController.initGPU();
-    newController.initBoidsPipeline();
+    newController.initBuffers();
     await newController.initShaders();
 
     return newController;
@@ -134,7 +138,7 @@ export default class GPUController {
     );
   }
 
-  private initBoidsPipeline() {
+  private initBuffers() {
     this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [
       this.boidSize,
     ]);
@@ -181,5 +185,42 @@ export default class GPUController {
     this.runSpatialHashComputeShader(this.workgroupCount, this.workgroupCount);
     this.runMainComputeShader(this.workgroupCount, this.workgroupCount);
     this.runVertexShaders(this.boids.length);
+  }
+
+  getCurrentParameters(): BoidParameters {
+    return {
+      boidSize: this.boidSize,
+    };
+  }
+
+  setParameters(parameters: Partial<BoidParameters>) {
+    for (const key in parameters) {
+      const newValue = parameters[key as keyof typeof parameters];
+      if (newValue === undefined) continue;
+
+      this.updateParameter(key as keyof BoidParameters, newValue);
+    }
+  }
+
+  private updateParameter(key: keyof BoidParameters, value: number) {
+    switch (key) {
+      case "boidSize":
+        this.boidSize = value;
+        this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [value]);
+        console.log("boidSize", value);
+        this.runMainComputeShader = setupMainComputeShader(
+          this.mainComputeShader,
+          this.device,
+          this.triangleSizeBuffer,
+          this.aspectRatioBuffer,
+          this.boidsCountBuffer,
+          this.boidsBuffer,
+          this.boidsComputeOutputBuffer,
+          this.spatialHashBuffer
+        ); 
+        //TODO: Try not to recreate the entire shader pipeline, rather just update the buffers
+        //Idea: change the shader setups to return classes whoose buffers can be updated on the fly by updating their bindgroups
+        break;
+    }
   }
 }
