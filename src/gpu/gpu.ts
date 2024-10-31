@@ -10,6 +10,7 @@ import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute
 import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
 import { swapChainFormat } from "../utility/constants";
 import getTextFromFile from "../utility/get-text-from-file";
+import ComputeShaderSetup from "../shader-setups/compute-shader-setup";
 
 export type Boid = {
   center: Vector2;
@@ -35,7 +36,7 @@ export default class GPUController {
   private spatialHashBuffer: GPUBuffer = null!;
 
   private runVertexShaders: RunVertexShaderPipeline = null!;
-  private runMainComputeShader: RunComputeShaderPipeline = null!;
+  private runMainComputeShader: ComputeShaderSetup = null!;
   private runSpatialHashComputeShader: RunComputeShaderPipeline = null!;
   private runClearSpatialHashComputeShader: RunComputeShaderPipeline = null!;
 
@@ -183,7 +184,7 @@ export default class GPUController {
   drawBoids(): void {
     this.runClearSpatialHashComputeShader(1);
     this.runSpatialHashComputeShader(this.workgroupCount, this.workgroupCount);
-    this.runMainComputeShader(this.workgroupCount, this.workgroupCount);
+    this.runMainComputeShader.run(this.workgroupCount, this.workgroupCount);
     this.runVertexShaders(this.boids.length);
   }
 
@@ -207,19 +208,8 @@ export default class GPUController {
       case "boidSize":
         this.boidSize = value;
         this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [value]);
-        console.log("boidSize", value);
-        this.runMainComputeShader = setupMainComputeShader(
-          this.mainComputeShader,
-          this.device,
-          this.triangleSizeBuffer,
-          this.aspectRatioBuffer,
-          this.boidsCountBuffer,
-          this.boidsBuffer,
-          this.boidsComputeOutputBuffer,
-          this.spatialHashBuffer
-        ); 
-        //TODO: Try not to recreate the entire shader pipeline, rather just update the buffers
-        //Idea: change the shader setups to return classes whoose buffers can be updated on the fly by updating their bindgroups
+
+        this.runMainComputeShader.updateBuffer(this.triangleSizeBuffer, "triangleSizeBuffer")
         break;
     }
   }

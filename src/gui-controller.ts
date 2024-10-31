@@ -12,7 +12,7 @@ export default class GUIController {
     this.parameters = this.gpu.getCurrentParameters();
 
     this.gui
-      .add(this.parameters, "boidSize", 0, 0.3, 0.0001)
+      .add(this.parameters, "boidSize", 0, 0.1, 0.0001)
       .onChange((value) => {
         gpu.setParameters({ boidSize: value });
       });

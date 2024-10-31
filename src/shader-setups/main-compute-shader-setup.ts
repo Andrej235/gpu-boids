@@ -1,5 +1,4 @@
 import ComputeShaderSetup from "./compute-shader-setup";
-import type { RunComputeShaderPipeline } from "./shader-setups-types";
 
 export default function setupMainComputeShader(
   shader: string,
@@ -10,7 +9,7 @@ export default function setupMainComputeShader(
   boidsBuffer: GPUBuffer,
   boidsComputeOutputBuffer: GPUBuffer,
   spatialHashBuffer: GPUBuffer
-): RunComputeShaderPipeline {
+) {
   const setup = new ComputeShaderSetup(
     "main compute shader",
     shader,
@@ -33,5 +32,5 @@ export default function setupMainComputeShader(
     }
   );
 
-  return (x, y, z) => setup.run(x, y, z);
+  return setup;
 }
