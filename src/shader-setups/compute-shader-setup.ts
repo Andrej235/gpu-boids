@@ -7,14 +7,14 @@ export default class ComputeShaderSetup<
   private buffers: Buffers;
   private computePipeline: GPUComputePipeline;
   private bindGroup: GPUBindGroup;
-  private createBindGroup: (buffers: Buffers) => GPUBindGroup;
 
   constructor(
+    label: string,
     shader: string,
     device: GPUDevice,
     buffers: Buffers,
     bindGroupLayout: GPUBindGroupLayout,
-    createBindGroup: (buffers: Buffers) => GPUBindGroup
+    bufferOrder: (keyof Buffers)[]
   ) {
     this.device = device;
     this.buffers = buffers;
@@ -34,8 +34,17 @@ export default class ComputeShaderSetup<
       },
     });
 
-    this.createBindGroup = createBindGroup;
-    this.bindGroup = this.createBindGroup(this.buffers);
+    this.bindGroup = device.createBindGroup({
+      label: label + " bind group",
+      layout: bindGroupLayout,
+      entries: bufferOrder.map((key, i) => ({
+        binding: i,
+        resource: {
+          label: `${label} buffer: ${key.toString()}`,
+          buffer: this.buffers[key],
+        },
+      })),
+    });
   }
 
   updateBuffer(newBuffer: GPUBuffer, label: keyof Buffers) {
