@@ -8,7 +8,8 @@ export default function setupMainComputeShader(
   boidsCountBuffer: GPUBuffer,
   boidsBuffer: GPUBuffer,
   boidsComputeOutputBuffer: GPUBuffer,
-  spatialHashBuffer: GPUBuffer
+  spatialHashBuffer: GPUBuffer,
+  boidBehaviorBuffer: GPUBuffer
 ) {
   const setup = new ComputeShaderSetup(
     "main compute shader",
@@ -21,6 +22,7 @@ export default function setupMainComputeShader(
       boidsBuffer,
       boidsComputeOutputBuffer,
       spatialHashBuffer,
+      boidBehaviorBuffer,
     },
     {
       triangleSizeBuffer: "read-only-storage",
@@ -29,6 +31,7 @@ export default function setupMainComputeShader(
       boidsBuffer: "storage",
       boidsComputeOutputBuffer: "storage",
       spatialHashBuffer: "read-only-storage",
+      boidBehaviorBuffer: "read-only-storage",
     }
   );
 

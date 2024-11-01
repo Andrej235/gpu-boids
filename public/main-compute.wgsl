@@ -13,24 +13,24 @@ struct Cell {
     boidIndices: array<u32, 32>,
 };
 
+struct BoidBehavior {
+    maxSpeed: f32,
+    maxSteeringForce: f32,
+    edgeAvoidanceForce: f32,
+    separationForce: f32,
+    maxSeparationDistance: f32,
+    alignmentForce: f32,
+    cohesionForce: f32,
+    visualRange: f32,
+}
+
 @group(0) @binding(0) var<storage, read> triangleSize : f32;
 @group(0) @binding(1) var<storage, read> aspectRatio : f32;
 @group(0) @binding(2) var<storage, read> boidsCount : f32;
 @group(0) @binding(3) var<storage, read_write> boids : array<Boid>;
 @group(0) @binding(4) var<storage, read_write> output : array<ComputeOutput>;
 @group(0) @binding(5) var<storage, read> spatialHash: array<Cell, 100>;
-
-const MAX_SPEED = 0.001;
-const MAX_STEERING_FORCE = 0.0001;
-
-const EDGE_AVOIDANCE_FORCE = 0.05;
-
-const SEPARATION_FORCE = 1f;
-const MAX_SEPARATION_DISTANCE = 0.02;
-
-const ALIGNMENT_FORCE = 0.5f;
-const COHESION_FORCE = 0.0125f;
-const VISUAL_RANGE = 0.07f;
+@group(0) @binding(6) var<storage, read> behavior: BoidBehavior;
 
 @compute @workgroup_size(16, 16)
 fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -64,9 +64,9 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     var otherVelocity = vec2(otherBoid.velocity[0], otherBoid.velocity[1]);
 
                     let distance = distance(otherPosition, position);
-                    if distance < MAX_SEPARATION_DISTANCE {
+                    if distance < behavior.maxSeparationDistance {
                         avoid += position - otherPosition;
-                    } if distance < VISUAL_RANGE {
+                    } if distance < behavior.visualRange {
                         averageVelocity += otherVelocity;
                         averagePosition += otherPosition;
                         neighbourCount += 1f;
@@ -77,22 +77,22 @@ fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     var desiredVelocity = vec2(0f, 0f);
-    desiredVelocity += avoid;
+    desiredVelocity += avoid * behavior.separationForce;
 
     if neighbourCount > 0f {
         averageVelocity /= neighbourCount;
-        desiredVelocity += averageVelocity * ALIGNMENT_FORCE;
+        desiredVelocity += averageVelocity * behavior.alignmentForce;
 
         averagePosition /= neighbourCount;
-        desiredVelocity += (averagePosition - position) * COHESION_FORCE;
+        desiredVelocity += (averagePosition - position) * behavior.cohesionForce;
     }
 
-    desiredVelocity += avoidEdges(position, velocity) * EDGE_AVOIDANCE_FORCE;
+    desiredVelocity += avoidEdges(position, velocity) * behavior.edgeAvoidanceForce;
 
     var steering = desiredVelocity - velocity;
-    steering = normalize(steering) * MAX_STEERING_FORCE;
+    steering = normalize(steering) * behavior.maxSteeringForce;
 
-    velocity = normalize(velocity + steering) * MAX_SPEED;
+    velocity = normalize(velocity + steering) * behavior.maxSpeed;
     position += velocity;
 
     output[workgroupIndex] = ComputeOutput(getVertexPositions(position, velocity));
@@ -112,16 +112,16 @@ fn avoidEdges(position: vec2<f32>, currentVelocity: vec2<f32>) -> vec2<f32> {
     var velocity = currentVelocity;
 
     if position.x < 0.1 {
-        velocity.x = velocity.x + EDGE_AVOIDANCE_FORCE;
+        velocity.x = velocity.x + behavior.edgeAvoidanceForce;
     }
     if position.x > 0.9 {
-        velocity.x = velocity.x - EDGE_AVOIDANCE_FORCE;
+        velocity.x = velocity.x - behavior.edgeAvoidanceForce;
     }
     if position.y > 0.1 {
-        velocity.y = velocity.y - EDGE_AVOIDANCE_FORCE;
+        velocity.y = velocity.y - behavior.edgeAvoidanceForce;
     }
     if position.y < 0.9 {
-        velocity.y = velocity.y + EDGE_AVOIDANCE_FORCE;
+        velocity.y = velocity.y + behavior.edgeAvoidanceForce;
     }
     return velocity;
 }

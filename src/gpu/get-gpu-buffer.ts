@@ -8,7 +8,7 @@ export function getBuffer(
   const gpuBuffer = device.createBuffer({
     mappedAtCreation: true,
     size,
-    usage: usage,
+    usage,
     label,
   });
 

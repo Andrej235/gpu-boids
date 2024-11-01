@@ -31,6 +31,7 @@ export default class GPUController {
   private boidsCountBuffer: GPUBuffer = null!;
   private boidsComputeOutputBuffer: GPUBuffer = null!;
   private spatialHashBuffer: GPUBuffer = null!;
+  private boidBehaviorBuffer: GPUBuffer = null!;
 
   private runVertexShaders: VertexShaderSetup = null!;
   private runMainComputeShader: ComputeShaderSetup = null!;
@@ -118,7 +119,8 @@ export default class GPUController {
       this.boidsCountBuffer,
       this.boidsBuffer,
       this.boidsComputeOutputBuffer,
-      this.spatialHashBuffer
+      this.spatialHashBuffer,
+      this.boidBehaviorBuffer
     );
 
     this.runSpatialHashComputeShader = setupSpatialHashComputeShader(
@@ -140,15 +142,18 @@ export default class GPUController {
     this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [
       this.boidSize,
     ]);
+
     this.aspectRatioBuffer = getBuffer(this.device, "aspectRatio", 4, [
       this.canvas.width / this.canvas.height,
     ]);
+
     this.boidsBuffer = getBuffer(
       this.device,
       "boids",
       this.boids.length * 16,
       this.getWGSLBoidRepresentation(this.boids)
     );
+
     this.boidsCountBuffer = getBuffer(this.device, "boidsCount", 4, [
       this.boids.length,
     ]);
@@ -164,8 +169,14 @@ export default class GPUController {
       this.device,
       "spatialHash",
       16 * 16 * (32 * 4 + 4), //8x8 grid with (32 boids in each cell and a index count)
-      [],
-      GPUBufferUsage.STORAGE
+      []
+    );
+
+    this.boidBehaviorBuffer = getBuffer(
+      this.device,
+      "boidBehavior",
+      8 * 4,
+      [0.001, 0.0001, 0.05, 1, 0.02, 0.5, 0.0125, 0.07]
     );
   }
 
