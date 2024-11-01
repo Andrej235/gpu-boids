@@ -81,7 +81,7 @@ export default class ComputeShaderSetup<
     });
   }
 
-  updateBuffer(newBuffer: GPUBuffer, key: keyof Buffers) {
+  updateBuffer(key: keyof Buffers, newBuffer: GPUBuffer) {
     (this.buffers[key] as GPUBuffer) = newBuffer;
 
     const index = this.bindGroupEntriesIndexMap.get(key)!;

@@ -6,8 +6,6 @@ import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute
 import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
 import { swapChainFormat } from "../utility/constants";
 import getTextFromFile from "../utility/get-text-from-file";
-import ComputeShaderSetup from "../shader-setups/compute-shader-setup";
-import VertexShaderSetup from "../shader-setups/vertex-shader-setup";
 
 export type Boid = {
   center: Vector2;
@@ -16,6 +14,14 @@ export type Boid = {
 
 export type BoidParameters = {
   boidSize: number;
+  maxSpeed: number;
+  maxSteeringForce: number;
+  edgeAvoidanceForce: number;
+  separationForce: number;
+  maxSeparationDistance: number;
+  alignmentForce: number;
+  cohesionForce: number;
+  visualRange: number;
 };
 
 export default class GPUController {
@@ -33,16 +39,34 @@ export default class GPUController {
   private spatialHashBuffer: GPUBuffer = null!;
   private boidBehaviorBuffer: GPUBuffer = null!;
 
-  private runVertexShaders: VertexShaderSetup = null!;
-  private runMainComputeShader: ComputeShaderSetup = null!;
-  private runSpatialHashComputeShader: ComputeShaderSetup = null!;
-  private runClearSpatialHashComputeShader: ComputeShaderSetup = null!;
+  private runVertexShaders: ReturnType<typeof setupVertexAndFragmentShaders> =
+    null!;
+  private runMainComputeShader: ReturnType<typeof setupMainComputeShader> =
+    null!;
+  private runSpatialHashComputeShader: ReturnType<
+    typeof setupSpatialHashComputeShader
+  > = null!;
+  private runClearSpatialHashComputeShader: ReturnType<
+    typeof setupClearSpatialHashComputeShader
+  > = null!;
 
   private canvas: HTMLCanvasElement;
   private context: GPUCanvasContext;
   private boids: Boid[];
   private workgroupCount: number;
   private boidSize: number;
+
+  private boidParameters: BoidParameters = {
+    boidSize: 0.01,
+    maxSpeed: 0.001,
+    maxSteeringForce: 0.0001,
+    edgeAvoidanceForce: 0.05,
+    separationForce: 1,
+    maxSeparationDistance: 0.02,
+    alignmentForce: 0.5,
+    cohesionForce: 0.0125,
+    visualRange: 0.07,
+  };
 
   private constructor(
     canvas: HTMLCanvasElement,
@@ -172,12 +196,16 @@ export default class GPUController {
       []
     );
 
-    this.boidBehaviorBuffer = getBuffer(
-      this.device,
-      "boidBehavior",
-      8 * 4,
-      [0.001, 0.0001, 0.05, 1, 0.02, 0.5, 0.0125, 0.07]
-    );
+    this.boidBehaviorBuffer = getBuffer(this.device, "boidBehavior", 8 * 4, [
+      this.boidParameters.maxSpeed,
+      this.boidParameters.maxSteeringForce,
+      this.boidParameters.edgeAvoidanceForce,
+      this.boidParameters.separationForce,
+      this.boidParameters.maxSeparationDistance,
+      this.boidParameters.alignmentForce,
+      this.boidParameters.cohesionForce,
+      this.boidParameters.visualRange,
+    ]);
   }
 
   private getWGSLBoidRepresentation(boids: Boid[]) {
@@ -199,10 +227,8 @@ export default class GPUController {
     this.runVertexShaders.run(this.boids.length * 3);
   }
 
-  getCurrentParameters(): BoidParameters {
-    return {
-      boidSize: this.boidSize,
-    };
+  public get BoidParameters(): BoidParameters {
+    return this.boidParameters;
   }
 
   setParameters(parameters: Partial<BoidParameters>) {
@@ -221,8 +247,8 @@ export default class GPUController {
         this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [value]);
 
         this.runMainComputeShader.updateBuffer(
-          this.triangleSizeBuffer,
-          "triangleSizeBuffer"
+          "triangleSizeBuffer",
+          this.triangleSizeBuffer
         );
         break;
     }

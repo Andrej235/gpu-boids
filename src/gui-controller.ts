@@ -9,7 +9,7 @@ export default class GUIController {
   constructor(gpu: GPUController) {
     this.gpu = gpu;
     this.gui = new dat.GUI();
-    this.parameters = this.gpu.getCurrentParameters();
+    this.parameters = this.gpu.BoidParameters;
 
     this.gui
       .add(this.parameters, "boidSize", 0, 0.1, 0.0001)
