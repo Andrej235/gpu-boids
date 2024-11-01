@@ -1,13 +1,13 @@
 import { Vector2 } from "three";
-import setupVertexAndFragmentShaders from "../shader-setups/vertex-shader-setup";
+import setupVertexAndFragmentShaders from "../shader-setups/main-vertex-shader-setup";
 import setupMainComputeShader from "../shader-setups/main-compute-shader-setup";
-import type { RunVertexShaderPipeline } from "../shader-setups/shader-setups-types";
 import { getBuffer } from "./get-gpu-buffer";
 import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute=shader=setup";
 import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
 import { swapChainFormat } from "../utility/constants";
 import getTextFromFile from "../utility/get-text-from-file";
 import ComputeShaderSetup from "../shader-setups/compute-shader-setup";
+import VertexShaderSetup from "../shader-setups/vertex-shader-setup";
 
 export type Boid = {
   center: Vector2;
@@ -32,7 +32,7 @@ export default class GPUController {
   private boidsComputeOutputBuffer: GPUBuffer = null!;
   private spatialHashBuffer: GPUBuffer = null!;
 
-  private runVertexShaders: RunVertexShaderPipeline = null!;
+  private runVertexShaders: VertexShaderSetup = null!;
   private runMainComputeShader: ComputeShaderSetup = null!;
   private runSpatialHashComputeShader: ComputeShaderSetup = null!;
   private runClearSpatialHashComputeShader: ComputeShaderSetup = null!;
@@ -185,7 +185,7 @@ export default class GPUController {
       this.workgroupCount
     );
     this.runMainComputeShader.run(this.workgroupCount, this.workgroupCount);
-    this.runVertexShaders(this.boids.length);
+    this.runVertexShaders.run(this.boids.length * 3);
   }
 
   getCurrentParameters(): BoidParameters {
