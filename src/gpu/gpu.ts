@@ -196,7 +196,7 @@ export default class GPUController {
       []
     );
 
-    this.boidBehaviorBuffer = getBuffer(this.device, "boidBehavior", 8 * 4, [
+    this.boidBehaviorBuffer = getBuffer(this.device, "boidBehavior", 32, [
       this.boidParameters.maxSpeed,
       this.boidParameters.maxSteeringForce,
       this.boidParameters.edgeAvoidanceForce,
@@ -251,6 +251,31 @@ export default class GPUController {
           this.triangleSizeBuffer
         );
         break;
+
+      case "maxSpeed":
+      case "maxSteeringForce":
+      case "edgeAvoidanceForce":
+      case "separationForce":
+      case "maxSeparationDistance":
+      case "alignmentForce":
+      case "cohesionForce":
+      case "visualRange":
+        this.boidParameters[key] = value;
+        this.boidBehaviorBuffer = getBuffer(this.device, "boidBehavior", 32, [
+          this.boidParameters.maxSpeed,
+          this.boidParameters.maxSteeringForce,
+          this.boidParameters.edgeAvoidanceForce,
+          this.boidParameters.separationForce,
+          this.boidParameters.maxSeparationDistance,
+          this.boidParameters.alignmentForce,
+          this.boidParameters.cohesionForce,
+          this.boidParameters.visualRange,
+        ]);
+
+        this.runMainComputeShader.updateBuffer(
+          "boidBehaviorBuffer",
+          this.boidBehaviorBuffer
+        );
     }
   }
 }
