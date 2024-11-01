@@ -14,7 +14,7 @@ struct Cell {
 @group(0) @binding(2) var<storage, read_write> spatialHash: array<Cell, 100>;
 
 @compute @workgroup_size(16, 16)
-fn compute_spatial_hash_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn compute_main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let workgroupIndex = global_id.x + global_id.y * 16;
     if workgroupIndex >= u32(boidsCount) {
         return;

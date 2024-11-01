@@ -1,10 +1,7 @@
 import { Vector2 } from "three";
 import setupVertexAndFragmentShaders from "../shader-setups/vertex-shader-setup";
 import setupMainComputeShader from "../shader-setups/main-compute-shader-setup";
-import type {
-  RunComputeShaderPipeline,
-  RunVertexShaderPipeline,
-} from "../shader-setups/shader-setups-types";
+import type { RunVertexShaderPipeline } from "../shader-setups/shader-setups-types";
 import { getBuffer } from "./get-gpu-buffer";
 import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute=shader=setup";
 import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
@@ -37,8 +34,8 @@ export default class GPUController {
 
   private runVertexShaders: RunVertexShaderPipeline = null!;
   private runMainComputeShader: ComputeShaderSetup = null!;
-  private runSpatialHashComputeShader: RunComputeShaderPipeline = null!;
-  private runClearSpatialHashComputeShader: RunComputeShaderPipeline = null!;
+  private runSpatialHashComputeShader: ComputeShaderSetup = null!;
+  private runClearSpatialHashComputeShader: ComputeShaderSetup = null!;
 
   private canvas: HTMLCanvasElement;
   private context: GPUCanvasContext;
@@ -182,8 +179,11 @@ export default class GPUController {
   }
 
   drawBoids(): void {
-    this.runClearSpatialHashComputeShader(1);
-    this.runSpatialHashComputeShader(this.workgroupCount, this.workgroupCount);
+    this.runClearSpatialHashComputeShader.run(1);
+    this.runSpatialHashComputeShader.run(
+      this.workgroupCount,
+      this.workgroupCount
+    );
     this.runMainComputeShader.run(this.workgroupCount, this.workgroupCount);
     this.runVertexShaders(this.boids.length);
   }
@@ -209,7 +209,10 @@ export default class GPUController {
         this.boidSize = value;
         this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [value]);
 
-        this.runMainComputeShader.updateBuffer(this.triangleSizeBuffer, "triangleSizeBuffer")
+        this.runMainComputeShader.updateBuffer(
+          this.triangleSizeBuffer,
+          "triangleSizeBuffer"
+        );
         break;
     }
   }
