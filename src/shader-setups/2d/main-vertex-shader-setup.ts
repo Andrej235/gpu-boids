@@ -1,6 +1,6 @@
-import VertexShaderSetup from "./vertex-shader-setup";
+import VertexShaderSetup from "../vertex-shader-setup";
 
-export default function setupVertexAndFragmentShaders(
+export default function setupVertexShader(
   shader: string,
   device: GPUDevice,
   context: GPUCanvasContext,

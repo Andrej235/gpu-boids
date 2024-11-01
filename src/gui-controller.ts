@@ -1,4 +1,4 @@
-import GPUController, { BoidParameters } from "./gpu/gpu";
+import GPUController, { BoidParameters, Dimensions } from "./gpu/gpu";
 import * as dat from "dat.gui";
 
 export default class GUIController {
@@ -64,6 +64,15 @@ export default class GUIController {
       .add(this.parameters, "maxSeparationDistance", 0, 0.1, 0.000001)
       .onChange((value) => {
         gpu.setParameters({ maxSeparationDistance: value });
+      });
+
+    this.gui
+      .add(this.parameters, "dimensions", [
+        Dimensions.TwoDimensions,
+        Dimensions.ThreeDimensions,
+      ])
+      .onChange((value) => {
+        gpu.setParameters({ dimensions: value });
       });
   }
 }

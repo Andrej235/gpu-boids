@@ -10,11 +10,9 @@ const initialBoidsCount = 128; //5592405 is maximum, limited by the buffer size 
 
 let boidData: {
   boids: Boid[];
-  size: number;
   count: number;
 } = {
   boids: [],
-  size: 0.01,
   count: 0,
 };
 
@@ -45,7 +43,7 @@ async function init() {
   boidData.count = boidData.boids.length;
   randomizeBoids();
 
-  gpu = await GPUController.create(canvas, boidData.boids, boidData.size);
+  gpu = await GPUController.create(canvas, boidData.boids);
   new GUIController(gpu);
   requestAnimationFrame(update);
 }

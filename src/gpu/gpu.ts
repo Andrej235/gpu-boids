@@ -1,18 +1,25 @@
 import { Vector2 } from "three";
-import setupVertexAndFragmentShaders from "../shader-setups/main-vertex-shader-setup";
-import setupMainComputeShader from "../shader-setups/main-compute-shader-setup";
+import setupVertexShader from "../shader-setups/2d/main-vertex-shader-setup";
+import setupMainComputeShader from "../shader-setups/2d/main-compute-shader-setup";
 import { getBuffer } from "./get-gpu-buffer";
-import setupSpatialHashComputeShader from "../shader-setups/spatial-hash=compute=shader=setup";
-import setupClearSpatialHashComputeShader from "../shader-setups/clear-spatial-hash-compute-shader-setup";
+import setupSpatialHashComputeShader from "../shader-setups/2d/spatial-hash=compute=shader=setup";
+import setupClearSpatialHashComputeShader from "../shader-setups/2d/clear-spatial-hash-compute-shader-setup";
 import { swapChainFormat } from "../utility/constants";
 import getTextFromFile from "../utility/get-text-from-file";
+import setupVertexShader3D from "../shader-setups/3d/main-vertex-shader-setup-3d";
 
 export type Boid = {
   center: Vector2;
   velocity: Vector2;
 };
 
+export enum Dimensions {
+  TwoDimensions = "2d",
+  ThreeDimensions = "3d",
+}
+
 export type BoidParameters = {
+  dimensions: Dimensions;
   boidSize: number;
   maxSpeed: number;
   maxSteeringForce: number;
@@ -31,6 +38,8 @@ export default class GPUController {
   private spatialHashComputeShader: string = null!;
   private clearSpatialHashComputeShader: string = null!;
 
+  private vertexShader3D: string = null!;
+
   private triangleSizeBuffer: GPUBuffer = null!;
   private aspectRatioBuffer: GPUBuffer = null!;
   private boidsBuffer: GPUBuffer = null!;
@@ -39,8 +48,7 @@ export default class GPUController {
   private spatialHashBuffer: GPUBuffer = null!;
   private boidBehaviorBuffer: GPUBuffer = null!;
 
-  private runVertexShaders: ReturnType<typeof setupVertexAndFragmentShaders> =
-    null!;
+  private runVertexShaders: ReturnType<typeof setupVertexShader> = null!;
   private runMainComputeShader: ReturnType<typeof setupMainComputeShader> =
     null!;
   private runSpatialHashComputeShader: ReturnType<
@@ -50,13 +58,15 @@ export default class GPUController {
     typeof setupClearSpatialHashComputeShader
   > = null!;
 
+  private runVertexShaders3D: ReturnType<typeof setupVertexShader3D> = null!;
+
   private canvas: HTMLCanvasElement;
   private context: GPUCanvasContext;
   private boids: Boid[];
   private workgroupCount: number;
-  private boidSize: number;
 
   private boidParameters: BoidParameters = {
+    dimensions: Dimensions.TwoDimensions,
     boidSize: 0.01,
     maxSpeed: 0.001,
     maxSteeringForce: 0.0001,
@@ -68,11 +78,7 @@ export default class GPUController {
     visualRange: 0.07,
   };
 
-  private constructor(
-    canvas: HTMLCanvasElement,
-    boids: Boid[],
-    boidSize: number
-  ) {
+  private constructor(canvas: HTMLCanvasElement, boids: Boid[]) {
     this.canvas = canvas;
     const context = canvas.getContext("webgpu");
     if (!context) throw new Error("Failed to get GPU context from canvas.");
@@ -81,18 +87,11 @@ export default class GPUController {
     this.boids = boids;
     if (boids.length < 1) throw new Error("No boids provided.");
 
-    this.boidSize = boidSize;
-    if (boidSize <= 0) throw new Error("Boid size must be greater than 0.");
-
     this.workgroupCount = Math.ceil(Math.sqrt(boids.length) / 16);
   }
 
-  static async create(
-    canvas: HTMLCanvasElement,
-    boids: Boid[],
-    boidSize: number
-  ) {
-    const newController = new GPUController(canvas, boids, boidSize);
+  static async create(canvas: HTMLCanvasElement, boids: Boid[]) {
+    const newController = new GPUController(canvas, boids);
 
     await newController.initGPU();
     newController.initBuffers();
@@ -119,16 +118,22 @@ export default class GPUController {
   }
 
   private async initShaders() {
-    this.vertexShader = await getTextFromFile("shader.wgsl");
-    this.mainComputeShader = await getTextFromFile("main-compute.wgsl");
+    this.vertexShader = await getTextFromFile("shaders/2d/vertex-shader.wgsl");
+    this.mainComputeShader = await getTextFromFile(
+      "shaders/2d/main-compute.wgsl"
+    );
     this.spatialHashComputeShader = await getTextFromFile(
-      "spatial-hash-compute.wgsl"
+      "shaders/2d/spatial-hash-compute.wgsl"
     );
     this.clearSpatialHashComputeShader = await getTextFromFile(
-      "spatial-hash-clear-compute.wgsl"
+      "shaders/2d/spatial-hash-clear-compute.wgsl"
     );
 
-    this.runVertexShaders = setupVertexAndFragmentShaders(
+    this.vertexShader3D = await getTextFromFile(
+      "shaders/3d/vertex-shader.wgsl"
+    );
+
+    this.runVertexShaders = setupVertexShader(
       this.vertexShader,
       this.device,
       this.context,
@@ -160,11 +165,17 @@ export default class GPUController {
       this.device,
       this.spatialHashBuffer
     );
+
+    this.runVertexShaders3D = setupVertexShader3D(
+      this.vertexShader3D,
+      this.device,
+      this.context
+    );
   }
 
   private initBuffers() {
     this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [
-      this.boidSize,
+      this.boidParameters.boidSize,
     ]);
 
     this.aspectRatioBuffer = getBuffer(this.device, "aspectRatio", 4, [
@@ -218,13 +229,18 @@ export default class GPUController {
   }
 
   drawBoids(): void {
-    this.runClearSpatialHashComputeShader.run(1);
-    this.runSpatialHashComputeShader.run(
-      this.workgroupCount,
-      this.workgroupCount
-    );
-    this.runMainComputeShader.run(this.workgroupCount, this.workgroupCount);
-    this.runVertexShaders.run(this.boids.length * 3);
+    //TODO: Replace with a simple state machine
+    if (this.boidParameters.dimensions === Dimensions.TwoDimensions) {
+      this.runClearSpatialHashComputeShader.run(1);
+      this.runSpatialHashComputeShader.run(
+        this.workgroupCount,
+        this.workgroupCount
+      );
+      this.runMainComputeShader.run(this.workgroupCount, this.workgroupCount);
+      this.runVertexShaders.run(this.boids.length * 3);
+    } else {
+      this.runVertexShaders3D.run(6);
+    }
   }
 
   public get BoidParameters(): BoidParameters {
@@ -240,11 +256,17 @@ export default class GPUController {
     }
   }
 
-  private updateParameter(key: keyof BoidParameters, value: number) {
+  private updateParameter<T extends keyof BoidParameters>(
+    key: T,
+    value: BoidParameters[T]
+  ) {
+    this.boidParameters[key] = value;
+
     switch (key) {
       case "boidSize":
-        this.boidSize = value;
-        this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [value]);
+        this.triangleSizeBuffer = getBuffer(this.device, "size", 4, [
+          this.boidParameters.boidSize,
+        ]);
 
         this.runMainComputeShader.updateBuffer(
           "triangleSizeBuffer",
@@ -260,7 +282,6 @@ export default class GPUController {
       case "alignmentForce":
       case "cohesionForce":
       case "visualRange":
-        this.boidParameters[key] = value;
         this.boidBehaviorBuffer = getBuffer(this.device, "boidBehavior", 32, [
           this.boidParameters.maxSpeed,
           this.boidParameters.maxSteeringForce,
@@ -276,6 +297,10 @@ export default class GPUController {
           "boidBehaviorBuffer",
           this.boidBehaviorBuffer
         );
+        break;
+
+      default:
+        break;
     }
   }
 }

@@ -1,4 +1,4 @@
-import ComputeShaderSetup from "./compute-shader-setup";
+import ComputeShaderSetup from "../compute-shader-setup";
 
 export default function setupMainComputeShader(
   shader: string,
